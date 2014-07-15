@@ -1,0 +1,9 @@
+{
+	"name": "sift",
+	"description": "A 'grep' like tool, written in D.",
+	"copyright": "Copyright (C) 2014, Bob Tolbert",
+	"authors": ["Bob Tolbert"],
+	"dependencies": {
+        "docopt": ">=0.6.1-b.1"
+	}
+}
