@@ -128,7 +128,7 @@ File type options:
                 bool first = true;
                 auto file = File(item);
                 auto range = file.byLine();
-                auto lcount = 1;
+                auto lcount = 0;
                 foreach(line; range) {
                     lcount += 1;
                     auto captures = matchFirst(line, matcher);
