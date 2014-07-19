@@ -51,26 +51,52 @@ int[string] getDefaultExtensions() {
     return exts;
 }
 
+void searchOneFile(string filename, Regex!char matcher, docopt.ArgValue[string] arguments)
+{
+    bool first = true;
+    auto file = File(filename);
+    auto lcount = 0;
+    foreach(line; file.byLine()) {
+        lcount += 1;
+        auto captures = matchFirst(line, matcher);
+        bool printMatch = !captures.empty() && arguments["-v"].isFalse();
+        bool printNoMatch = captures.empty() && arguments["-v"].isTrue();
+        if (printMatch || printNoMatch) {
+            if (first) {
+                if (arguments["--name-only"].isTrue()) {
+                    writeln(filename);
+                } else {
+                    writeln(format("\n%s", filename));
+                }
+                first = false;
+            }
+            if (arguments["--name-only"].isFalse()) {
+                writeln(format("%d: %s", lcount, line));
+            }
+        }
+    }
+}
+
 int main(string[] args)
 {
 
     auto doc = "
-Usage: sift [options] PATTERN
-       sift [options] PATTERN [DIR ...]
+Usage: sift [options] PATTERN [FILES ...]
 
 Arguments:
     PATTERN     pattern to search for
-    DIR         directory to start search in.
+    FILES       files or directories to search. [default: .]
 
 Options:
     -h --help
-    --version              Show version and exit.
     -v                     Reverse the match.
+    -Q --literal           Quote all meta-characters.
     -i --case-insensitive  Case-insensitive match.
     -m --multi-line        Multiline regex match.
     --no-color             no color output
     --name-only            Show only filename of matches
     --depth-first          Depth first search
+    --version              Show version and exit.
 
 File type options:
     --d         D files
@@ -78,6 +104,19 @@ File type options:
     --c++       C/C++ files
     --py        Python files
     ";
+
+    string[dchar] metaTable = ['[': "\\[",
+                               '{': "\\{",
+                               '|': "\\|",
+                               '*': "\\*",
+                               '+': "\\+",
+                               '?': "\\?",
+                               '(': "\\(",
+                               ')': "\\)",
+                               '^': "\\^",
+                               '$': "\\$",
+                               '\\': "\\\\",
+                               '.': "\\."];
 
     auto arguments = docopt.docopt(doc, args[1..$], true, "0.1.0");
 
@@ -93,9 +132,14 @@ File type options:
     if (arguments["--multi-line"].isTrue()) {
         flags ~= "m";
     }
-    auto matcher = regex(arguments["PATTERN"].toString(), flags);
-    if (arguments["DIR"].isEmpty()) {
-        arguments["DIR"].add(".");
+    auto pattern = arguments["PATTERN"].toString();
+    if (arguments["--literal"].isTrue()) {
+        pattern = translate(pattern, metaTable);
+    }
+    auto matcher = regex(pattern, flags);
+
+    if (arguments["FILES"].isEmpty()) {
+        arguments["FILES"].add(".");
     }
 
     int[string] defaultExts = getDefaultExtensions();
@@ -117,36 +161,20 @@ File type options:
         defaultExts = userExts;
     }
 
-    foreach(dir; arguments["DIR"].asList()) {
-        auto dirName = buildNormalizedPath(dir);        
-        auto files = dirEntries(dirName, spanMode);
-        foreach(item; files) {
-            if (!item.isFile()) {
-                continue;
-            }
-            if (extMatch(item, defaultExts)) {
-                bool first = true;
-                auto file = File(item);
-                auto range = file.byLine();
-                auto lcount = 0;
-                foreach(line; range) {
-                    lcount += 1;
-                    auto captures = matchFirst(line, matcher);
-                    bool printMatch = !captures.empty() && arguments["-v"].isFalse();
-                    bool printNoMatch = captures.empty() && arguments["-v"].isTrue();
-                    if (printMatch || printNoMatch) {
-                        if (first) {
-                            if (arguments["--name-only"].isTrue()) {
-                                writeln(item);
-                            } else {
-                                writeln(format("\n%s", item));
-                            }
-                            first = false;
-                        }
-                        if (arguments["--name-only"].isFalse()) {
-                            writeln(format("%d: %s", lcount, line));
-                        }
-                    }
+//    writeln(arguments["FILES"]);
+
+    foreach(item; arguments["FILES"].asList()) {
+        if (item.isFile) {
+            searchOneFile(item, matcher, arguments);
+        } else if (item.isDir) {
+            auto dirName = buildNormalizedPath(item);
+            auto files = dirEntries(dirName, spanMode);
+            foreach(fileName; files) {
+                if (!fileName.isFile()) {
+                    continue;
+                }
+                if (extMatch(fileName, defaultExts)) {
+                    searchOneFile(fileName, matcher, arguments);
                 }
             }
         }
