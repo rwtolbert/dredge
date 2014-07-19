@@ -12,6 +12,8 @@ import std.stdio;
 import std.string;
 import std.algorithm;
 import std.regex;
+import std.utf;
+import std.stream;
 
 import docopt;
 
@@ -51,12 +53,24 @@ int[string] getDefaultExtensions() {
     return exts;
 }
 
-void searchOneFile(string filename, Regex!char matcher, docopt.ArgValue[string] arguments)
+int detectBOM(string filename)
+{
+    BufferedStream fstream = new BufferedFile(filename);
+    EndianStream file = new EndianStream(fstream);
+    int bom = file.readBOM();
+    file.close();
+    fstream.close();
+    return bom;
+}
+
+void searchOneFileStream(T)(string filename, Regex!T matcher, docopt.ArgValue[string] arguments)
 {
     bool first = true;
-    auto file = File(filename);
-    auto lcount = 0;
-    foreach(line; file.byLine()) {
+    BufferedStream fstream = new BufferedFile(filename);
+    EndianStream file = new EndianStream(fstream);
+    ulong lcount = 0;
+    foreach(T[] line; file)
+    {
         lcount += 1;
         auto captures = matchFirst(line, matcher);
         bool printMatch = !captures.empty() && arguments["-v"].isFalse();
@@ -75,6 +89,8 @@ void searchOneFile(string filename, Regex!char matcher, docopt.ArgValue[string] 
             }
         }
     }
+    file.close();
+    fstream.close();
 }
 
 int main(string[] args)
@@ -92,7 +108,6 @@ Options:
     -v                     Reverse the match.
     -Q --literal           Quote all meta-characters.
     -i --case-insensitive  Case-insensitive match.
-    -m --multi-line        Multiline regex match.
     --no-color             no color output
     --name-only            Show only filename of matches
     --depth-first          Depth first search
@@ -129,14 +144,14 @@ File type options:
     if (arguments["--case-insensitive"].isTrue()) {
         flags ~= "i";
     }
-    if (arguments["--multi-line"].isTrue()) {
-        flags ~= "m";
-    }
+
     auto pattern = arguments["PATTERN"].toString();
     if (arguments["--literal"].isTrue()) {
         pattern = translate(pattern, metaTable);
     }
     auto matcher = regex(pattern, flags);
+    auto wmatcher = regex(std.utf.toUTF16(pattern), flags);
+    auto dmatcher = regex(std.utf.toUTF32(pattern), flags);
 
     if (arguments["FILES"].isEmpty()) {
         arguments["FILES"].add(".");
@@ -163,20 +178,38 @@ File type options:
 
 //    writeln(arguments["FILES"]);
 
+    string [] fileList;
     foreach(item; arguments["FILES"].asList()) {
         if (item.isFile) {
-            searchOneFile(item, matcher, arguments);
+            fileList ~= item;
         } else if (item.isDir) {
             auto dirName = buildNormalizedPath(item);
             auto files = dirEntries(dirName, spanMode);
             foreach(fileName; files) {
-                if (!fileName.isFile()) {
-                    continue;
-                }
-                if (extMatch(fileName, defaultExts)) {
-                    searchOneFile(fileName, matcher, arguments);
+                if (fileName.isFile() && extMatch(fileName, defaultExts)) {
+                    fileList ~= fileName;
                 }
             }
+        }
+    }
+
+    foreach(file; fileList) {
+        auto bom = detectBOM(file);
+        switch(bom) {
+            case BOM.UTF8:
+                writeln("utf-8 ", file);
+                searchOneFileStream!char(file, matcher, arguments);
+                break;
+            case BOM.UTF16LE, BOM.UTF16BE:
+                searchOneFileStream!wchar(file, wmatcher, arguments);
+                break;
+            // case BOM.UTF32LE, BOM.UTF32BE:
+            //     writeln("utf-32 ", file);
+            //     searchOneFileStream!dchar(file, dmatcher, arguments);
+            //     break;
+            default:
+                searchOneFileStream!char(file, matcher, arguments);
+                break;
         }
     }
 
