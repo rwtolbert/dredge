@@ -14,6 +14,7 @@ import std.algorithm;
 import std.regex;
 import std.utf;
 import std.stream;
+import std.cstream;
 
 import docopt;
 
@@ -53,6 +54,10 @@ void addPyFiles(ref int[string] exts) {
     exts[".py"] = 1;
 }
 
+void addHyFiles(ref int[string] exts) {
+    exts[".hy"] = 1;
+}
+
 void addCMakeFiles(ref int[string] exts, ref int[string] names) {
     exts[".cmake"] = 1;
     names["CMakeLists.txt"] = 1;
@@ -67,26 +72,16 @@ void getDefaultExtensions(ref int[string] exts, ref int[string] names) {
     addPyFiles(exts);
 }
 
-int detectBOM(string filename)
-{
-    BufferedStream fstream = new BufferedFile(filename);
-    EndianStream file = new EndianStream(fstream);
-    int bom = file.readBOM();
-    file.close();
-    fstream.close();
-    return bom;
-}
-
-void searchOneFileStream(T)(string filename, Regex!T matcher, docopt.ArgValue[string] arguments)
+void searchOneFileStream(T)(InputStream inp, string filename,
+                            Regex!T matcher, docopt.ArgValue[string] arguments)
 {
     bool first = true;
-    BufferedStream fstream = new BufferedFile(filename);
-    EndianStream file = new EndianStream(fstream);
-    foreach(ulong lcount, T[] line; file)
+    bool reverse = arguments["-v"].isTrue();
+    foreach(ulong lcount, T[] line; inp)
     {
         auto captures = matchFirst(line, matcher);
-        bool printMatch = !captures.empty() && arguments["-v"].isFalse();
-        bool printNoMatch = captures.empty() && arguments["-v"].isTrue();
+        bool printMatch = !captures.empty() && !reverse;
+        bool printNoMatch = captures.empty() && reverse;
         if (printMatch || printNoMatch) {
             if (first) {
                 if (arguments["--name-only"].isTrue()) {
@@ -103,8 +98,6 @@ void searchOneFileStream(T)(string filename, Regex!T matcher, docopt.ArgValue[st
             }
         }
     }
-    file.close();
-    fstream.close();
 }
 
 int main(string[] args)
@@ -112,6 +105,7 @@ int main(string[] args)
 
     auto doc = "
 Usage: sift [options] PATTERN [FILES ...]
+       sift -f [options] [FILES ...]
 
 Arguments:
     PATTERN     pattern to search for
@@ -131,12 +125,17 @@ Base options:
     --help
     --version              Show version and exit.
 
+File find options:
+    -f             Only print files selected.
+    --sort-files   Sort the files found.
+
 File type options:
     --d         D files
     --c         C/C++ files
     --c++       C/C++ files
     --cmake     CMake files
     --csharp    C# files
+    --hy        Hy files
     --py        Python files
     ";
 
@@ -155,6 +154,8 @@ File type options:
 
     auto arguments = docopt.docopt(doc, args[1..$], true, "0.1.0");
 
+    //writeln(arguments);
+
     auto spanMode = SpanMode.breadth;
     if (arguments["--depth-first"].isTrue()) {
         spanMode = SpanMode.depth;
@@ -164,13 +165,6 @@ File type options:
     if (arguments["--case-insensitive"].isTrue()) {
         flags ~= "i";
     }
-
-    auto pattern = arguments["PATTERN"].toString();
-    if (arguments["--literal"].isTrue()) {
-        pattern = translate(pattern, metaTable);
-    }
-    auto matcher = regex(pattern, flags);
-    auto wmatcher = regex(std.utf.toUTF16(pattern), flags);
 
     if (arguments["FILES"].isEmpty()) {
         arguments["FILES"].add(".");
@@ -201,6 +195,9 @@ File type options:
     if (arguments["--py"].isTrue()) {
         addPyFiles(userExts);
     }
+    if (arguments["--hy"].isTrue()) {
+        addHyFiles(userExts);
+    }
     if (userExts.length > 0 || userNames.length > 0) {
         defaultExts = userExts;
         defaultNames = userNames;
@@ -209,7 +206,9 @@ File type options:
 //    writeln(arguments["FILES"]);
 
     auto FILES = arguments["FILES"].asList();
-    if (FILES.length == 1 && FILES[0].isFile && arguments["--with-filename"].isFalse()) {
+    if (FILES.length == 1 && FILES[0] == "-") {
+        arguments["--no-filename"] = new docopt.ArgValue(true);
+    } else if (FILES.length == 1 && FILES[0].isFile && arguments["--with-filename"].isFalse()) {
         arguments["--no-filename"] = new docopt.ArgValue(true);
     } else if (arguments["--with-filename"].isTrue()) {
         arguments["--no-filename"] = new docopt.ArgValue(false);
@@ -217,7 +216,9 @@ File type options:
 
     string [] fileList;
     foreach(item; FILES) {
-        if (item.isFile) {
+        if (item == "-") {
+            fileList ~= item;
+        } else if (item.isFile) {
             fileList ~= item;
         } else if (item.isDir) {
             auto dirName = buildNormalizedPath(item);
@@ -231,18 +232,50 @@ File type options:
         }
     }
 
-    foreach(file; fileList) {
-        auto bom = detectBOM(file);
+    if (arguments["--sort-files"].isTrue) {
+        sort(fileList);
+    }
+
+    if (arguments["-f"].isTrue) {
+        foreach(filename; fileList) {
+            writeln(filename);
+        }
+        return 0;
+    }
+
+    auto pattern = arguments["PATTERN"].toString();
+    if (arguments["--literal"].isTrue()) {
+        pattern = translate(pattern, metaTable);
+    }
+    auto matcher = regex(pattern, flags);
+    auto wmatcher = regex(std.utf.toUTF16(pattern), flags);
+
+    foreach(filename; fileList) {
+        BufferedStream fstream;
+        EndianStream inp;
+        int bom;
+
+        if (filename == "-") {
+            inp = new EndianStream(std.cstream.din);
+        } else {
+            fstream = new BufferedFile(filename);
+            inp = new EndianStream(fstream);
+            bom = inp.readBOM();
+        }
+
         switch(bom) {
-            case BOM.UTF8:
-                searchOneFileStream!char(file, matcher, arguments);
-                break;
             case BOM.UTF16LE, BOM.UTF16BE:
-                searchOneFileStream!wchar(file, wmatcher, arguments);
+                searchOneFileStream!wchar(inp, filename, wmatcher, arguments);
                 break;
+            case BOM.UTF8:
             default:
-                searchOneFileStream!char(file, matcher, arguments);
+                searchOneFileStream!char(inp, filename, matcher, arguments);
                 break;
+        }
+
+        inp.close();
+        if (fstream) {
+            fstream.close();
         }
     }
 
