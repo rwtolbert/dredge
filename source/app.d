@@ -22,6 +22,11 @@ public bool extMatch(DirEntry de, int[string] exts)
     return exts.get(extension(de.name), 0) == 1;
 }
 
+public bool nameMatch(DirEntry de, int[string] names)
+{
+    return names.get(baseName(de.name), 0) == 1;
+}
+
 void addDFiles(ref int[string] exts) {
     exts[".d"] = 1;
 }
@@ -40,17 +45,26 @@ void addCPPFiles(ref int[string] exts) {
     exts[".hpp"] = 1;
 }
 
+void addCSharpFiles(ref int[string] exts) {
+    exts[".cs"] = 1;
+}
+
 void addPyFiles(ref int[string] exts) {
     exts[".py"] = 1;
 }
 
-int[string] getDefaultExtensions() {
-    int[string] exts;
+void addCMakeFiles(ref int[string] exts, ref int[string] names) {
+    exts[".cmake"] = 1;
+    names["CMakeLists.txt"] = 1;
+}
+
+void getDefaultExtensions(ref int[string] exts, ref int[string] names) {
     addDFiles(exts);
     addCFiles(exts);
+    addCMakeFiles(exts, names);
     addCPPFiles(exts);
+    addCSharpFiles(exts);
     addPyFiles(exts);
-    return exts;
 }
 
 int detectBOM(string filename)
@@ -68,10 +82,8 @@ void searchOneFileStream(T)(string filename, Regex!T matcher, docopt.ArgValue[st
     bool first = true;
     BufferedStream fstream = new BufferedFile(filename);
     EndianStream file = new EndianStream(fstream);
-    ulong lcount = 0;
-    foreach(T[] line; file)
+    foreach(ulong lcount, T[] line; file)
     {
-        lcount += 1;
         auto captures = matchFirst(line, matcher);
         bool printMatch = !captures.empty() && arguments["-v"].isFalse();
         bool printNoMatch = captures.empty() && arguments["-v"].isTrue();
@@ -80,12 +92,14 @@ void searchOneFileStream(T)(string filename, Regex!T matcher, docopt.ArgValue[st
                 if (arguments["--name-only"].isTrue()) {
                     writeln(filename);
                 } else {
-                    writeln(format("\n%s", filename));
+                    if (arguments["--no-filename"].isFalse()) {
+                        writeln(format("\n%s", filename));
+                    }
                 }
                 first = false;
             }
             if (arguments["--name-only"].isFalse()) {
-                writeln(format("%d: %s", lcount, line));
+                writeln(format("%d:%s", lcount, line));
             }
         }
     }
@@ -104,19 +118,25 @@ Arguments:
     FILES       files or directories to search. [default: .]
 
 Options:
-    -h --help
     -v                     Reverse the match.
     -Q --literal           Quote all meta-characters.
     -i --case-insensitive  Case-insensitive match.
+    -H --with-filename     Include filename before match.
+    -h --no-filename       No filename before match.       
     --no-color             no color output
     --name-only            Show only filename of matches
     --depth-first          Depth first search
+
+Base options:
+    --help
     --version              Show version and exit.
 
 File type options:
     --d         D files
     --c         C/C++ files
     --c++       C/C++ files
+    --cmake     CMake files
+    --csharp    C# files
     --py        Python files
     ";
 
@@ -151,14 +171,17 @@ File type options:
     }
     auto matcher = regex(pattern, flags);
     auto wmatcher = regex(std.utf.toUTF16(pattern), flags);
-    auto dmatcher = regex(std.utf.toUTF32(pattern), flags);
 
     if (arguments["FILES"].isEmpty()) {
         arguments["FILES"].add(".");
     }
 
-    int[string] defaultExts = getDefaultExtensions();
+    int[string] defaultExts;
+    int[string] defaultNames;
+    getDefaultExtensions(defaultExts, defaultNames);
+
     int[string] userExts;
+    int[string] userNames;
     if (arguments["--d"].isTrue()) {
         addDFiles(userExts);
     }
@@ -169,24 +192,39 @@ File type options:
         addCFiles(userExts);
         addCPPFiles(userExts);
     }
+    if (arguments["--cmake"].isTrue()) {
+        addCMakeFiles(userExts, userNames);
+    }
+    if (arguments["--csharp"].isTrue()) {
+        addCSharpFiles(userExts);
+    }
     if (arguments["--py"].isTrue()) {
         addPyFiles(userExts);
     }
-    if (userExts.length > 0) {
+    if (userExts.length > 0 || userNames.length > 0) {
         defaultExts = userExts;
+        defaultNames = userNames;
     }
 
 //    writeln(arguments["FILES"]);
 
+    auto FILES = arguments["FILES"].asList();
+    if (FILES.length == 1 && FILES[0].isFile && arguments["--with-filename"].isFalse()) {
+        arguments["--no-filename"] = new docopt.ArgValue(true);
+    } else if (arguments["--with-filename"].isTrue()) {
+        arguments["--no-filename"] = new docopt.ArgValue(false);
+    }
+
     string [] fileList;
-    foreach(item; arguments["FILES"].asList()) {
+    foreach(item; FILES) {
         if (item.isFile) {
             fileList ~= item;
         } else if (item.isDir) {
             auto dirName = buildNormalizedPath(item);
             auto files = dirEntries(dirName, spanMode);
             foreach(fileName; files) {
-                if (fileName.isFile() && extMatch(fileName, defaultExts)) {
+                if (fileName.isFile() && (extMatch(fileName, defaultExts) ||
+                                          nameMatch(fileName, defaultNames))) {
                     fileList ~= fileName;
                 }
             }
@@ -197,16 +235,11 @@ File type options:
         auto bom = detectBOM(file);
         switch(bom) {
             case BOM.UTF8:
-                writeln("utf-8 ", file);
                 searchOneFileStream!char(file, matcher, arguments);
                 break;
             case BOM.UTF16LE, BOM.UTF16BE:
                 searchOneFileStream!wchar(file, wmatcher, arguments);
                 break;
-            // case BOM.UTF32LE, BOM.UTF32BE:
-            //     writeln("utf-32 ", file);
-            //     searchOneFileStream!dchar(file, dmatcher, arguments);
-            //     break;
             default:
                 searchOneFileStream!char(file, matcher, arguments);
                 break;
