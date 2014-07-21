@@ -28,16 +28,19 @@ public bool nameMatch(const DirEntry de, const int[string] names)
     return names.get(baseName(de.name), 0) == 1;
 }
 
-void addDFiles(ref int[string] exts) {
+void addDFiles(ref int[string] exts)
+{
     exts[".d"] = 1;
 }
 
-void addCFiles(ref int[string] exts) {
+void addCFiles(ref int[string] exts)
+{
     exts[".c"] = 1;
     exts[".h"] = 1;
 }
 
-void addCPPFiles(ref int[string] exts) {
+void addCPPFiles(ref int[string] exts)
+{
     exts[".h"] = 1;
     exts[".hh"] = 1;
     exts[".cc"] = 1;
@@ -49,39 +52,57 @@ void addCPPFiles(ref int[string] exts) {
     exts[".tpp"] = 1;
 }
 
-void addCSharpFiles(ref int[string] exts) {
+void addCSharpFiles(ref int[string] exts)
+{
     exts[".cs"] = 1;
 }
 
-void addCoffeescriptFiles(ref int[string] exts) {
+void addCoffeescriptFiles(ref int[string] exts)
+{
     exts[".coffee"] = 1;
 }
 
-void addFSharpFiles(ref int[string] exts) {
+void addFSharpFiles(ref int[string] exts)
+{
     exts[".fs"] = 1;
     exts[".fsx"] = 1;
 }
 
-void addGoFiles(ref int[string] exts) {
+void addGoFiles(ref int[string] exts)
+{
     exts[".go"] = 1;
 }
 
-void addPyFiles(ref int[string] exts) {
+void addPyFiles(ref int[string] exts)
+{
     exts[".py"] = 1;
 }
 
-void addPowershellFiles(ref int[string] exts) {
+void addPowershellFiles(ref int[string] exts)
+{
     exts[".ps1"] = 1;
     exts[".psm1"] = 1;
     exts[".psd1"] = 1;
     exts[".psc1"] = 1;
 }
 
-void addHyFiles(ref int[string] exts) {
+void addHyFiles(ref int[string] exts)
+{
     exts[".hy"] = 1;
 }
 
-void addRubyFiles(ref int[string] exts, ref int[string] names) {
+void addJavascriptFiles(ref int[string] exts)
+{
+    exts[".js"] = 1;
+}
+
+void addJSONFiles(ref int[string] exts)
+{
+    exts[".json"] = 1;
+}
+
+void addRubyFiles(ref int[string] exts, ref int[string] names)
+{
     exts[".rb"] = 1;
     exts[".rhtml"] = 1;
     exts[".rjs"] = 1;
@@ -91,16 +112,19 @@ void addRubyFiles(ref int[string] exts, ref int[string] names) {
     names["Rakefile"] = 1;
 }
 
-void addCMakeFiles(ref int[string] exts, ref int[string] names) {
+void addCMakeFiles(ref int[string] exts, ref int[string] names)
+{
     exts[".cmake"] = 1;
     names["CMakeLists.txt"] = 1;
 }
 
-void addSWIGFiles(ref int[string] exts) {
+void addSWIGFiles(ref int[string] exts)
+{
     exts[".i"] = 1;
 }
 
-void getDefaultExtensions(ref int[string] exts, ref int[string] names) {
+void getDefaultExtensions(ref int[string] exts, ref int[string] names)
+{
     addDFiles(exts);
     addCFiles(exts);
     addCMakeFiles(exts, names);
@@ -108,6 +132,8 @@ void getDefaultExtensions(ref int[string] exts, ref int[string] names) {
     addCPPFiles(exts);
     addCSharpFiles(exts);
     addFSharpFiles(exts);
+    addJavascriptFiles(exts);
+    addJSONFiles(exts);
     addPowershellFiles(exts);
     addPyFiles(exts);
     addRubyFiles(exts, names);
@@ -124,23 +150,31 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
         auto captures = matchFirst(line, matcher);
         bool printMatch = !captures.empty() && !reverse;
         bool printNoMatch = captures.empty() && reverse;
-        if (printMatch || printNoMatch) {
-            if (first) {
-                if (arguments["--name-only"].isTrue()) {
+        if (printMatch || printNoMatch)
+        {
+            if (first)
+            {
+                if (arguments["--name-only"].isTrue())
+                {
                     writeln(filename);
-                } else {
-                    if (arguments["--no-filename"].isFalse()) {
+                }
+                else
+                {
+                    if (arguments["--no-filename"].isFalse())
+                    {
                         writeln(format("\n%s", filename));
                     }
                 }
                 first = false;
             }
-            if (arguments["--name-only"].isFalse()) {
+            if (arguments["--name-only"].isFalse())
+            {
                 writeln(format("%d:%s", lcount, line));
             }
         }
     }
 }
+
 
 int main(string[] args)
 {
@@ -165,7 +199,7 @@ Search options:
 
 Output options:
     -H --with-filename     Include filename before match.
-    -h --no-filename       No filename before match.       
+    -h --no-filename       No filename before match.
     --no-color             no color output
     -g, --name-only        Show only filename of matches
     -s                     Suppress failure on missing or unreadable file.
@@ -197,6 +231,8 @@ File type options:
     --fsharp      F# files       [.fs .fsx]
     --go          Go files       [.go]
     --hy          Hy files       [.hy]
+    --js          Javascript     [.js]
+    --json        JSON           [.json]
     --powershell  Powershell     [.ps1 .psm1 .psd1 .psc1]
     --py          Python files   [.py]
     --ruby        Ruby files     [.rb .rhtml .rjs .rxml .erb .rake .spec Rakefile]
@@ -219,13 +255,15 @@ File type options:
     auto allDoc = usage ~ doc ~ typeOptions;
     auto arguments = docopt.docopt(allDoc, args[1..$], false, "0.2.0");
 
-    if (arguments["--help"].isTrue()) {
+    if (arguments["--help"].isTrue())
+    {
         write(usage);
         writeln(doc);
         return 0;
     }
 
-    if (arguments["--help-types"].isTrue()) {
+    if (arguments["--help-types"].isTrue())
+    {
         write(usage);
         writeln(typeOptions);
         return 0;
@@ -234,17 +272,20 @@ File type options:
 //    writeln(arguments);
 
     auto spanMode = SpanMode.breadth;
-    if (arguments["--no-recurse"].isTrue()) {
+    if (arguments["--no-recurse"].isTrue())
+    {
         spanMode = SpanMode.shallow;
     }
     bool follow = arguments["--follow"].isTrue();
 
     auto flags = "";
-    if (arguments["--case-insensitive"].isTrue()) {
+    if (arguments["--case-insensitive"].isTrue())
+    {
         flags ~= "i";
     }
 
-    if (arguments["FILES"].isEmpty()) {
+    if (arguments["FILES"].isEmpty())
+    {
         arguments["FILES"].add(".");
     }
 
@@ -254,47 +295,69 @@ File type options:
 
     int[string] userExts;
     int[string] userNames;
-    if (arguments["--d"].isTrue()) {
+    if (arguments["--d"].isTrue())
+    {
         addDFiles(userExts);
     }
-    if (arguments["--c"].isTrue()) {
+    if (arguments["--c"].isTrue())
+    {
         addCFiles(userExts);
     }
-    if (arguments["--cpp"].isTrue()) {
+    if (arguments["--cpp"].isTrue())
+    {
         addCFiles(userExts);
         addCPPFiles(userExts);
     }
-    if (arguments["--cmake"].isTrue()) {
+    if (arguments["--cmake"].isTrue())
+    {
         addCMakeFiles(userExts, userNames);
     }
-    if (arguments["--coffee"].isTrue()) {
+    if (arguments["--coffee"].isTrue())
+    {
         addCoffeescriptFiles(userExts);
     }
-    if (arguments["--csharp"].isTrue()) {
+    if (arguments["--csharp"].isTrue())
+    {
         addCSharpFiles(userExts);
     }
-    if (arguments["--fsharp"].isTrue()) {
+    if (arguments["--fsharp"].isTrue())
+    {
         addFSharpFiles(userExts);
     }
-    if (arguments["--go"].isTrue()) {
+    if (arguments["--go"].isTrue())
+    {
         addGoFiles(userExts);
     }
-    if (arguments["--hy"].isTrue()) {
+    if (arguments["--hy"].isTrue())
+    {
         addHyFiles(userExts);
     }
-    if (arguments["--powershell"].isTrue()) {
+    if (arguments["--js"].isTrue())
+    {
+        addJavascriptFiles(userExts);
+    }
+    if (arguments["--json"].isTrue())
+    {
+        addJSONFiles(userExts);
+    }
+    if (arguments["--powershell"].isTrue())
+    {
         addPowershellFiles(userExts);
     }
-    if (arguments["--py"].isTrue()) {
+    if (arguments["--py"].isTrue())
+    {
         addPyFiles(userExts);
     }
-    if (arguments["--ruby"].isTrue()) {
+    if (arguments["--ruby"].isTrue())
+    {
         addRubyFiles(userExts, userNames);
     }
-    if (arguments["--swig"].isTrue()) {
+    if (arguments["--swig"].isTrue())
+    {
         addSWIGFiles(userExts);
     }
-    if (userExts.length > 0 || userNames.length > 0) {
+    if (userExts.length > 0 || userNames.length > 0)
+    {
         defaultExts = userExts;
         defaultNames = userNames;
     }
@@ -302,81 +365,113 @@ File type options:
 //    writeln(arguments["FILES"]);
 
     auto FILES = arguments["FILES"].asList();
-    try {
-        if (FILES.length == 1 && FILES[0] == "-") {
+    try
+    {
+        if (FILES.length == 1 && FILES[0] == "-")
+        {
             arguments["--no-filename"] = new docopt.ArgValue(true);
-        } else if (FILES.length == 1 && FILES[0].isFile && arguments["--with-filename"].isFalse()) {
+        }
+        else if (FILES.length == 1 && FILES[0].isFile && arguments["--with-filename"].isFalse())
+        {
             arguments["--no-filename"] = new docopt.ArgValue(true);
-        } else if (arguments["--with-filename"].isTrue()) {
+        }
+        else if (arguments["--with-filename"].isTrue())
+        {
             arguments["--no-filename"] = new docopt.ArgValue(false);
         }
-    } catch(std.file.FileException e) {
-        if (arguments["-s"].isFalse) {
+    }
+    catch(std.file.FileException e)
+    {
+        if (arguments["-s"].isFalse)
+        {
             writeln("Unknown file: ", FILES[0]);
         }
         return -1;
     }
 
-    string [] fileList;
-    foreach(item; FILES) {
-        try {
-            if (item == "-") {
+    uint[string] ignoreDirs = [".git":1, ".hg":1, ".svn":1, ".dub":1, "CVS":1, ".DS_Store":1];
+    string[] fileList;
+    foreach(item; FILES)
+    {
+        try
+        {
+            if (item == "-" || item.isFile)
+            {
                 fileList ~= item;
-            } else if (item.isFile) {
-                fileList ~= item;
-            } else if (item.isDir) {
-                auto dirName = buildNormalizedPath(item);
-                auto files = dirEntries(dirName, spanMode, follow);
-                foreach(fileName; files) {
+            }
+            else if (item.isDir)
+            {
+                auto thisDir = buildNormalizedPath(item);
+                auto files = dirEntries(thisDir, spanMode, follow);
+                foreach(fileName; files)
+                {
+                    if (baseName(dirName(fileName)) in ignoreDirs)
+                    {
+                        continue;
+                    }
                     if (fileName.isFile() && (extMatch(fileName, defaultExts) ||
-                                              nameMatch(fileName, defaultNames))) {
+                                              nameMatch(fileName, defaultNames)))
+                    {
                         fileList ~= fileName;
                     }
                 }
             }
-        } catch(std.file.FileException e) {
-            if (arguments["-s"].isFalse) {
+        }
+        catch(std.file.FileException e)
+        {
+            if (arguments["-s"].isFalse)
+            {
                 writeln("Unknown file: ", item);
             }
         }
     }
 
-    if (arguments["--sort-files"].isTrue) {
+    if (arguments["--sort-files"].isTrue)
+    {
         std.algorithm.sort(fileList);
     }
 
-    if (arguments["-f"].isTrue) {
-        foreach(filename; fileList) {
+    if (arguments["-f"].isTrue)
+    {
+        foreach(filename; fileList)
+        {
             writeln(filename);
         }
         return 0;
     }
 
     auto pattern = arguments["PATTERN"].toString();
-    if (arguments["--literal"].isTrue()) {
+    if (arguments["--literal"].isTrue())
+    {
         pattern = translate(pattern, metaTable);
     }
-    if (arguments["--word-regex"].isTrue()) {
+    if (arguments["--word-regex"].isTrue())
+    {
         pattern = format("\\b%s\\b", pattern);
     }
     auto matcher = regex(pattern, flags);
     auto wmatcher = regex(std.utf.toUTF16(pattern), flags);
 
-    foreach(filename; fileList) {
+    foreach(filename; fileList)
+    {
         BufferedStream fstream;
         EndianStream inp;
         int bom;
 
-        if (filename == "-") {
+        if (filename == "-")
+        {
             inp = new EndianStream(std.cstream.din);
             bom = -1;
-        } else {
+        }
+        else
+        {
             fstream = new BufferedFile(filename);
             inp = new EndianStream(fstream);
             bom = inp.readBOM();
         }
 
-        switch(bom) {
+        switch(bom)
+        {
             case BOM.UTF16LE, BOM.UTF16BE:
                 searchOneFileStream!wchar(inp, filename, wmatcher, arguments);
                 break;
@@ -387,7 +482,8 @@ File type options:
         }
 
         inp.close();
-        if (fstream) {
+        if (fstream)
+        {
             fstream.close();
         }
     }
