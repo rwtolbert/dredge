@@ -358,7 +358,6 @@ File type options:
     }
     if (arguments["--word-regex"].isTrue()) {
         pattern = format("\\b%s\\b", pattern);
-        writeln(pattern);
     }
     auto matcher = regex(pattern, flags);
     auto wmatcher = regex(std.utf.toUTF16(pattern), flags);
