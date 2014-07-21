@@ -53,12 +53,42 @@ void addCSharpFiles(ref int[string] exts) {
     exts[".cs"] = 1;
 }
 
+void addCoffeescriptFiles(ref int[string] exts) {
+    exts[".coffee"] = 1;
+}
+
+void addFSharpFiles(ref int[string] exts) {
+    exts[".fs"] = 1;
+    exts[".fsx"] = 1;
+}
+
+void addGoFiles(ref int[string] exts) {
+    exts[".go"] = 1;
+}
+
 void addPyFiles(ref int[string] exts) {
     exts[".py"] = 1;
 }
 
+void addPowershellFiles(ref int[string] exts) {
+    exts[".ps1"] = 1;
+    exts[".psm1"] = 1;
+    exts[".psd1"] = 1;
+    exts[".psc1"] = 1;
+}
+
 void addHyFiles(ref int[string] exts) {
     exts[".hy"] = 1;
+}
+
+void addRubyFiles(ref int[string] exts, ref int[string] names) {
+    exts[".rb"] = 1;
+    exts[".rhtml"] = 1;
+    exts[".rjs"] = 1;
+    exts[".rxml"] = 1;
+    exts[".rake"] = 1;
+    exts[".spec"] = 1;
+    names["Rakefile"] = 1;
 }
 
 void addCMakeFiles(ref int[string] exts, ref int[string] names) {
@@ -66,13 +96,22 @@ void addCMakeFiles(ref int[string] exts, ref int[string] names) {
     names["CMakeLists.txt"] = 1;
 }
 
+void addSWIGFiles(ref int[string] exts) {
+    exts[".i"] = 1;
+}
+
 void getDefaultExtensions(ref int[string] exts, ref int[string] names) {
     addDFiles(exts);
     addCFiles(exts);
     addCMakeFiles(exts, names);
+    addCoffeescriptFiles(exts);
     addCPPFiles(exts);
     addCSharpFiles(exts);
+    addFSharpFiles(exts);
+    addPowershellFiles(exts);
     addPyFiles(exts);
+    addRubyFiles(exts, names);
+    addSWIGFiles(exts);
 }
 
 void searchOneFileStream(T)(InputStream inp, const string filename,
@@ -148,14 +187,20 @@ File inclusion options:
 
     auto typeOptions = "
 File type options:
-    --d         D files        [.d]
-    --c         C files        [.c .h]
-    --cpp       C++ files      [.cpp .cc .cxx .c++ .hpp .tpp .hh .h .hxx]
-    --clojure   Clojure files  [.clj]
-    --cmake     CMake files    [CMakeLists.txt .cmake]
-    --csharp    C# files       [.cs]
-    --hy        Hy files       [.hy]
-    --py        Python files   [.py]
+    --c           C files        [.c .h]
+    --cpp         C++ files      [.cpp .cc .cxx .c++ .hpp .tpp .hh .h .hxx]
+    --clojure     Clojure files  [.clj]
+    --cmake       CMake files    [CMakeLists.txt .cmake]
+    --coffee      Coffeescript   [.coffee]
+    --csharp      C# files       [.cs]
+    --d           D files        [.d]
+    --fsharp      F# files       [.fs .fsx]
+    --go          Go files       [.go]
+    --hy          Hy files       [.hy]
+    --powershell  Powershell     [.ps1 .psm1 .psd1 .psc1]
+    --py          Python files   [.py]
+    --ruby        Ruby files     [.rb .rhtml .rjs .rxml .erb .rake .spec Rakefile]
+    --swig        SWIG files     [.i]
     ";
 
     string[dchar] metaTable = ['[': "\\[",
@@ -171,8 +216,14 @@ File type options:
                                '\\': "\\\\",
                                '.': "\\."];
 
-    auto miniDoc = usage ~ doc;
-    auto arguments = docopt.docopt(miniDoc, args[1..$], true, "0.1.0");
+    auto allDoc = usage ~ doc ~ typeOptions;
+    auto arguments = docopt.docopt(allDoc, args[1..$], false, "0.2.0");
+
+    if (arguments["--help"].isTrue()) {
+        write(usage);
+        writeln(doc);
+        return 0;
+    }
 
     if (arguments["--help-types"].isTrue()) {
         write(usage);
@@ -180,10 +231,7 @@ File type options:
         return 0;
     }
 
-    auto fullDoc = miniDoc ~ typeOptions;
-    arguments = docopt.docopt(fullDoc, args[1..$], true);
-
-    //writeln(arguments);
+//    writeln(arguments);
 
     auto spanMode = SpanMode.breadth;
     if (arguments["--no-recurse"].isTrue()) {
@@ -219,14 +267,32 @@ File type options:
     if (arguments["--cmake"].isTrue()) {
         addCMakeFiles(userExts, userNames);
     }
+    if (arguments["--coffee"].isTrue()) {
+        addCoffeescriptFiles(userExts);
+    }
     if (arguments["--csharp"].isTrue()) {
         addCSharpFiles(userExts);
+    }
+    if (arguments["--fsharp"].isTrue()) {
+        addFSharpFiles(userExts);
+    }
+    if (arguments["--go"].isTrue()) {
+        addGoFiles(userExts);
+    }
+    if (arguments["--hy"].isTrue()) {
+        addHyFiles(userExts);
+    }
+    if (arguments["--powershell"].isTrue()) {
+        addPowershellFiles(userExts);
     }
     if (arguments["--py"].isTrue()) {
         addPyFiles(userExts);
     }
-    if (arguments["--hy"].isTrue()) {
-        addHyFiles(userExts);
+    if (arguments["--ruby"].isTrue()) {
+        addRubyFiles(userExts, userNames);
+    }
+    if (arguments["--swig"].isTrue()) {
+        addSWIGFiles(userExts);
     }
     if (userExts.length > 0 || userNames.length > 0) {
         defaultExts = userExts;
