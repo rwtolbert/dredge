@@ -122,12 +122,14 @@ Search options:
     -v                     Reverse the match.
     -Q --literal           Quote all meta-characters.
     -i --case-insensitive  Case-insensitive match.
+    -w --word-regex        Match whole words only.
 
 Output options:
     -H --with-filename     Include filename before match.
     -h --no-filename       No filename before match.       
     --no-color             no color output
     -g, --name-only        Show only filename of matches
+    -s                     Suppress failure on missing or unreadable file.
 
 Base options:
     --help
@@ -243,7 +245,9 @@ File type options:
             arguments["--no-filename"] = new docopt.ArgValue(false);
         }
     } catch(std.file.FileException e) {
-        writeln("Unknown file: ", FILES[0]);
+        if (arguments["-s"].isFalse) {
+            writeln("Unknown file: ", FILES[0]);
+        }
         return -1;
     }
 
@@ -265,8 +269,9 @@ File type options:
                 }
             }
         } catch(std.file.FileException e) {
-            writeln("Unknown file: ", item);
-            return -1;
+            if (arguments["-s"].isFalse) {
+                writeln("Unknown file: ", item);
+            }
         }
     }
 
@@ -284,6 +289,10 @@ File type options:
     auto pattern = arguments["PATTERN"].toString();
     if (arguments["--literal"].isTrue()) {
         pattern = translate(pattern, metaTable);
+    }
+    if (arguments["--word-regex"].isTrue()) {
+        pattern = format("\\b%s\\b", pattern);
+        writeln(pattern);
     }
     auto matcher = regex(pattern, flags);
     auto wmatcher = regex(std.utf.toUTF16(pattern), flags);
