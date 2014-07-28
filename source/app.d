@@ -74,6 +74,7 @@ FileType[string] getTypes()
         "--make"   : FileType([".mk", ".mak"], ["makefile", "Makefile", "GNUmakefile"]),
         "--matlab" : FileType([".m"], []),
         "--md"     : FileType([".mkd", ".md"], []),
+        "--nimrod" : FileType([".nim"], []),
         "--objc"   : FileType([".m", ".h"], []),
         "--objcpp" : FileType([".mm", ".h"], []),
         "--ocaml"  : FileType([".ml", ".mli"], []),
