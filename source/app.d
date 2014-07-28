@@ -28,116 +28,141 @@ public bool nameMatch(const DirEntry de, const int[string] names)
     return names.get(baseName(de.name), 0) == 1;
 }
 
-void addDFiles(ref int[string] exts)
+struct FileType
 {
-    exts[".d"] = 1;
+    string[] extensions;
+    string[] names;
 }
 
-void addCFiles(ref int[string] exts)
+FileType[string] getTypes()
 {
-    exts[".c"] = 1;
-    exts[".h"] = 1;
+    FileType[string] types = [
+        "--ada"    : FileType([".ada", ".adb", ".ads"], []),
+        "--asm"    : FileType([".asm", ".s"], []),
+        "--asp"    : FileType([".asp"], []),
+        "--aspx"   : FileType([".master", ".ascx", ".asmx", ".aspx", ".svc"], []),
+        "--batch"  : FileType([".bat", ".cmd"], []),
+        "--c"      : FileType([".c", ".h"], []),
+        "--cfmx"   : FileType([".cfc", ".cfm", ".cfml"], []),
+        "--clojure": FileType([".clj"], []),
+        "--cmake"  : FileType([".cmake"], ["CMakeLists.txt"]),
+        "--coffee" : FileType([".coffee"], []),
+        "--cpp"    : FileType([".h", ".hh", ".cc", ".cpp", ".cxx", ".c++", ".hpp", ".hxx", ".tpp"], []),
+        "--csharp" : FileType([".cs"], []),
+        "--css"    : FileType([".css"], []),
+        "--d"      : FileType([".d"], []),
+        "--dart"   : FileType([".dart"], []),
+        "--delphi" : FileType([".pas",".int",".dfm",".nfm",".dof",".dpk",".dproj",".groupproj",".bdsgroup",".bdsproj"],[]),
+        "--elisp"  : FileType([".el"], []),
+        "--elixir" : FileType([".ex", ".exs"], []),
+        "--erlang" : FileType([".erl", ".hrl"], []),
+        "--fortran": FileType([".f", ".f77", ".f90", ".f95", ".f03", ".for", ".ftn", ".fpp"], []),
+        "--fsharp" : FileType([".fs", ".fsx"], []),
+        "--go"     : FileType([".go"], []),
+        "--groovy" : FileType([".groovy", ".gtmpl", ".gpp", ".grunit", ".gradle"], []),
+        "--haskell": FileType([".hs", ".lhs"], []),
+        "--hh"     : FileType([".h"], []),
+        "--html"   : FileType([".html", ".htm"], []),
+        "--hy"     : FileType([".hy"], []),
+        "--java"   : FileType([".java", ".properties"], []),
+        "--js"     : FileType([".js"], []),
+        "--json"   : FileType([".json"], []),
+        "--jsp"    : FileType([".jsp", ".jspx", ".jhtm", ".jhtml"], []),
+        "--less"   : FileType([".less"], []),
+        "--lisp"   : FileType([".lisp", ".lsp"], []),
+        "--lua"    : FileType([".lua"], []),
+        "--make"   : FileType([".mk", ".mak"], ["makefile", "Makefile", "GNUmakefile"]),
+        "--matlab" : FileType([".m"], []),
+        "--md"     : FileType([".mkd", ".md"], []),
+        "--objc"   : FileType([".m", ".h"], []),
+        "--objcpp" : FileType([".mm", ".h"], []),
+        "--ocaml"  : FileType([".ml", ".mli"], []),
+        "--parrot" : FileType([".pir", ".pasm",  ".pmc", ".ops", ".pod", ".pg", ".tg"], []),
+        "--perl"   : FileType([".pl", ".pm", ".pod", ".t", ".psgi"], []),
+        "--php"    : FileType([".php", ".phpt", ".php3", ".php4", ".php5", ".phtml"], []),
+        "--ninja"  : FileType([".ninja"], []),
+        "--powershell" : FileType([".ps1", ".psm1", ".psd1", ".psc1"], []),
+        "--py"     : FileType([".py"], []),
+        "--r"      : FileType([".r"], []),
+        "--ruby"   : FileType([".rb", ".rhtml", ".rjs", ".rxml", ".rake", ".spec"], ["Rakefile"]),
+        "--rust"   : FileType([".rs"], []),
+        "--sass"   : FileType([".sass", ".scss"], []),
+        "--scala"  : FileType([".scala"], []),
+        "--scheme" : FileType([".scm", ".ss"], []),
+        "--shell"  : FileType([".sh", ".bash", ".csh", ".tcsh", ".ksh", ".zsh", ".fish"], []),
+        "--smalltalk" : FileType([".st"], []),
+        "--sql"    : FileType([".sql", ".ctl"], []),
+        "--tcl"    : FileType([".tcl", ".itcl", ".itk"], []),
+        "--tex"    : FileType([".tex", ".cls",  ".sty"], []),
+        "--textile": FileType([".textile"], []),
+        "--swift"  : FileType([".swift"], []),
+        "--swig"   : FileType([".i"], []),
+        "--vb"     : FileType([".bas", ".cls", ".frm", ".ctl", ".vb", ".resx"], []),
+        "--verilog": FileType([".v", ".vh", ".sv"], []),
+        "--vhdl"   : FileType([".vhd", ".vhdl"], []),
+        "--vim"    : FileType([".vim"], []),
+        "--xml"    : FileType([".xml", ".dtd", ".xsl", ".xslt", ".ent"], []),
+        "--yaml"   : FileType([".yaml", ".yml"], []),
+        ];
+    return types;
 }
 
-void addCPPFiles(ref int[string] exts)
+string getTypeOptions(FileType[string] types)
 {
-    exts[".h"] = 1;
-    exts[".hh"] = 1;
-    exts[".cc"] = 1;
-    exts[".cpp"] = 1;
-    exts[".cxx"] = 1;
-    exts[".c++"] = 1;
-    exts[".hpp"] = 1;
-    exts[".hxx"] = 1;
-    exts[".tpp"] = 1;
+    string res = "\nFile type options:\n";
+    string[] keys = types.keys;
+    sort(keys);  // from std.algorithm;
+    foreach(k; keys)
+    {
+        string exts = join(types[k].extensions, " ");
+        res ~= format("    %-13s", k);
+        if (types[k].extensions.length > 0)
+        {
+            res ~= " " ~ join(types[k].extensions, " ");
+        }
+        if (types[k].names.length > 0)
+        {
+            res ~= " " ~ join(types[k].names, " ");
+        }
+        res ~= "\n";
+    }
+    return res;
 }
 
-void addCSharpFiles(ref int[string] exts)
+void getDefaultExtensions(ref int[string] exts, ref int[string] names,
+                          const FileType[string] types)
 {
-    exts[".cs"] = 1;
+    foreach(k,v; types)
+    {
+       foreach(ext; v.extensions)
+       {
+           exts[ext] = 1;
+       }
+       foreach(name; v.names)
+       {
+           names[name] = 1;
+       }
+    }
 }
 
-void addCoffeescriptFiles(ref int[string] exts)
+void getUserExtensions(ref int[string] exts, ref int[string] names,
+                       const docopt.ArgValue[string] arguments,
+                       const FileType[string] types)
 {
-    exts[".coffee"] = 1;
-}
-
-void addFSharpFiles(ref int[string] exts)
-{
-    exts[".fs"] = 1;
-    exts[".fsx"] = 1;
-}
-
-void addGoFiles(ref int[string] exts)
-{
-    exts[".go"] = 1;
-}
-
-void addPyFiles(ref int[string] exts)
-{
-    exts[".py"] = 1;
-}
-
-void addPowershellFiles(ref int[string] exts)
-{
-    exts[".ps1"] = 1;
-    exts[".psm1"] = 1;
-    exts[".psd1"] = 1;
-    exts[".psc1"] = 1;
-}
-
-void addHyFiles(ref int[string] exts)
-{
-    exts[".hy"] = 1;
-}
-
-void addJavascriptFiles(ref int[string] exts)
-{
-    exts[".js"] = 1;
-}
-
-void addJSONFiles(ref int[string] exts)
-{
-    exts[".json"] = 1;
-}
-
-void addRubyFiles(ref int[string] exts, ref int[string] names)
-{
-    exts[".rb"] = 1;
-    exts[".rhtml"] = 1;
-    exts[".rjs"] = 1;
-    exts[".rxml"] = 1;
-    exts[".rake"] = 1;
-    exts[".spec"] = 1;
-    names["Rakefile"] = 1;
-}
-
-void addCMakeFiles(ref int[string] exts, ref int[string] names)
-{
-    exts[".cmake"] = 1;
-    names["CMakeLists.txt"] = 1;
-}
-
-void addSWIGFiles(ref int[string] exts)
-{
-    exts[".i"] = 1;
-}
-
-void getDefaultExtensions(ref int[string] exts, ref int[string] names)
-{
-    addDFiles(exts);
-    addCFiles(exts);
-    addCMakeFiles(exts, names);
-    addCoffeescriptFiles(exts);
-    addCPPFiles(exts);
-    addCSharpFiles(exts);
-    addFSharpFiles(exts);
-    addJavascriptFiles(exts);
-    addJSONFiles(exts);
-    addPowershellFiles(exts);
-    addPyFiles(exts);
-    addRubyFiles(exts, names);
-    addSWIGFiles(exts);
+    foreach(arg, value; arguments)
+    {
+        if (arg in types && value.isTrue())
+        {
+            foreach(ext; types[arg].extensions)
+            {
+                exts[ext] = 1;
+            }
+            foreach(name; types[arg].names)
+            {
+                names[name] = 1;
+            }
+        }
+    }
 }
 
 void searchOneFileStream(T)(InputStream inp, const string filename,
@@ -219,25 +244,8 @@ File inclusion options:
 
     ";
 
-    auto typeOptions = "
-File type options:
-    --c           C files        [.c .h]
-    --cpp         C++ files      [.cpp .cc .cxx .c++ .hpp .tpp .hh .h .hxx]
-    --clojure     Clojure files  [.clj]
-    --cmake       CMake files    [CMakeLists.txt .cmake]
-    --coffee      Coffeescript   [.coffee]
-    --csharp      C# files       [.cs]
-    --d           D files        [.d]
-    --fsharp      F# files       [.fs .fsx]
-    --go          Go files       [.go]
-    --hy          Hy files       [.hy]
-    --js          Javascript     [.js]
-    --json        JSON           [.json]
-    --powershell  Powershell     [.ps1 .psm1 .psd1 .psc1]
-    --py          Python files   [.py]
-    --ruby        Ruby files     [.rb .rhtml .rjs .rxml .erb .rake .spec Rakefile]
-    --swig        SWIG files     [.i]
-    ";
+    auto types = getTypes();
+    auto typeOptions = getTypeOptions(types);
 
     string[dchar] metaTable = ['[': "\\[",
                                '{': "\\{",
@@ -278,12 +286,6 @@ File type options:
     }
     bool follow = arguments["--follow"].isTrue();
 
-    auto flags = "";
-    if (arguments["--case-insensitive"].isTrue())
-    {
-        flags ~= "i";
-    }
-
     if (arguments["FILES"].isEmpty())
     {
         arguments["FILES"].add(".");
@@ -291,75 +293,10 @@ File type options:
 
     int[string] defaultExts;
     int[string] defaultNames;
-    getDefaultExtensions(defaultExts, defaultNames);
-
-    int[string] userExts;
-    int[string] userNames;
-    if (arguments["--d"].isTrue())
+    getUserExtensions(defaultExts, defaultNames, arguments, types);
+    if (defaultExts.length == 0 && defaultNames.length == 0)
     {
-        addDFiles(userExts);
-    }
-    if (arguments["--c"].isTrue())
-    {
-        addCFiles(userExts);
-    }
-    if (arguments["--cpp"].isTrue())
-    {
-        addCFiles(userExts);
-        addCPPFiles(userExts);
-    }
-    if (arguments["--cmake"].isTrue())
-    {
-        addCMakeFiles(userExts, userNames);
-    }
-    if (arguments["--coffee"].isTrue())
-    {
-        addCoffeescriptFiles(userExts);
-    }
-    if (arguments["--csharp"].isTrue())
-    {
-        addCSharpFiles(userExts);
-    }
-    if (arguments["--fsharp"].isTrue())
-    {
-        addFSharpFiles(userExts);
-    }
-    if (arguments["--go"].isTrue())
-    {
-        addGoFiles(userExts);
-    }
-    if (arguments["--hy"].isTrue())
-    {
-        addHyFiles(userExts);
-    }
-    if (arguments["--js"].isTrue())
-    {
-        addJavascriptFiles(userExts);
-    }
-    if (arguments["--json"].isTrue())
-    {
-        addJSONFiles(userExts);
-    }
-    if (arguments["--powershell"].isTrue())
-    {
-        addPowershellFiles(userExts);
-    }
-    if (arguments["--py"].isTrue())
-    {
-        addPyFiles(userExts);
-    }
-    if (arguments["--ruby"].isTrue())
-    {
-        addRubyFiles(userExts, userNames);
-    }
-    if (arguments["--swig"].isTrue())
-    {
-        addSWIGFiles(userExts);
-    }
-    if (userExts.length > 0 || userNames.length > 0)
-    {
-        defaultExts = userExts;
-        defaultNames = userNames;
+        getDefaultExtensions(defaultExts, defaultNames, types);
     }
 
 //    writeln(arguments["FILES"]);
@@ -448,6 +385,11 @@ File type options:
     if (arguments["--word-regex"].isTrue())
     {
         pattern = format("\\b%s\\b", pattern);
+    }
+    auto flags = "";
+    if (arguments["--case-insensitive"].isTrue())
+    {
+        flags ~= "i";
     }
     auto matcher = regex(pattern, flags);
     auto wmatcher = regex(std.utf.toUTF16(pattern), flags);
