@@ -18,12 +18,12 @@ import std.cstream;
 
 import docopt;
 
-public bool extMatch(const DirEntry de, const int[string] exts)
+bool extMatch(const DirEntry de, const int[string] exts)
 {
     return exts.get(extension(de.name), 0) == 1;
 }
 
-public bool nameMatch(const DirEntry de, const int[string] names)
+bool nameMatch(const DirEntry de, const int[string] names)
 {
     return names.get(baseName(de.name), 0) == 1;
 }
@@ -34,9 +34,9 @@ struct FileType
     string[] names;
 }
 
-FileType[string] getTypes()
+mixin template GetTypes()
 {
-    FileType[string] types = [
+    auto types = [
         "--ada"    : FileType([".ada", ".adb", ".ads"], []),
         "--asm"    : FileType([".asm", ".s"], []),
         "--asp"    : FileType([".asp"], []),
@@ -105,11 +105,11 @@ FileType[string] getTypes()
         "--xml"    : FileType([".xml", ".dtd", ".xsl", ".xslt", ".ent"], []),
         "--yaml"   : FileType([".yaml", ".yml"], []),
         ];
-    return types;
 }
 
-string getTypeOptions(FileType[string] types)
+string getTypeOptions()
 {
+    mixin GetTypes;
     string res = "\nFile type options:\n";
     string[] keys = types.keys;
     sort(keys);  // from std.algorithm;
@@ -130,9 +130,9 @@ string getTypeOptions(FileType[string] types)
     return res;
 }
 
-void getDefaultExtensions(ref int[string] exts, ref int[string] names,
-                          const FileType[string] types)
+void getDefaultExtensions(ref int[string] exts, ref int[string] names)
 {
+    mixin GetTypes;
     foreach(k,v; types)
     {
        foreach(ext; v.extensions)
@@ -147,9 +147,9 @@ void getDefaultExtensions(ref int[string] exts, ref int[string] names,
 }
 
 void getUserExtensions(ref int[string] exts, ref int[string] names,
-                       const docopt.ArgValue[string] arguments,
-                       const FileType[string] types)
+                       const docopt.ArgValue[string] arguments)
 {
+    mixin GetTypes;
     foreach(arg, value; arguments)
     {
         if (arg in types && value.isTrue())
@@ -245,9 +245,6 @@ File inclusion options:
 
     ";
 
-    auto types = getTypes();
-    auto typeOptions = getTypeOptions(types);
-
     string[dchar] metaTable = ['[': "\\[",
                                '{': "\\{",
                                '|': "\\|",
@@ -261,6 +258,7 @@ File inclusion options:
                                '\\': "\\\\",
                                '.': "\\."];
 
+    auto typeOptions = getTypeOptions();
     auto allDoc = usage ~ doc ~ typeOptions;
     auto arguments = docopt.docopt(allDoc, args[1..$], false, "0.2.0");
 
@@ -294,10 +292,10 @@ File inclusion options:
 
     int[string] defaultExts;
     int[string] defaultNames;
-    getUserExtensions(defaultExts, defaultNames, arguments, types);
+    getUserExtensions(defaultExts, defaultNames, arguments);
     if (defaultExts.length == 0 && defaultNames.length == 0)
     {
-        getDefaultExtensions(defaultExts, defaultNames, types);
+        getDefaultExtensions(defaultExts, defaultNames);
     }
 
 //    writeln(arguments["FILES"]);
