@@ -15,8 +15,9 @@ import std.regex;
 import std.utf;
 import std.stream;
 import std.cstream;
+import std.getopt;
 
-import docopt;
+//import docopt;
 
 public bool extMatch(const DirEntry de, const int[string] exts)
 {
@@ -31,6 +32,11 @@ public bool nameMatch(const DirEntry de, const int[string] names)
 void addDFiles(ref int[string] exts)
 {
     exts[".d"] = 1;
+}
+
+void removeDFiles(ref int[string] exts)
+{
+    exts[".d"] = 0;
 }
 
 void addCFiles(ref int[string] exts)
@@ -141,10 +147,10 @@ void getDefaultExtensions(ref int[string] exts, ref int[string] names)
 }
 
 void searchOneFileStream(T)(InputStream inp, const string filename,
-                            Regex!T matcher, const docopt.ArgValue[string] arguments)
+                            Regex!T matcher, bool reverse, bool name_only,
+                            bool no_filename)
 {
     bool first = true;
-    bool reverse = arguments["-v"].isTrue();
     foreach(ulong lcount, T[] line; inp)
     {
         auto captures = matchFirst(line, matcher);
@@ -154,20 +160,20 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
         {
             if (first)
             {
-                if (arguments["--name-only"].isTrue())
+                if (name_only)
                 {
                     writeln(filename);
                 }
                 else
                 {
-                    if (arguments["--no-filename"].isFalse())
+                    if (!no_filename)
                     {
                         writeln(format("\n%s", filename));
                     }
                 }
                 first = false;
             }
-            if (arguments["--name-only"].isFalse())
+            if (!name_only)
             {
                 writeln(format("%d:%s", lcount, line));
             }
@@ -210,7 +216,7 @@ Base options:
     --version              Show version and exit.
 
 File find options:
-    -f                     Only print files selected.
+    -f --find-files        Only print files selected.
     --sort-files           Sort the files found.
 
 File inclusion options:
@@ -252,41 +258,100 @@ File type options:
                                '\\': "\\\\",
                                '.': "\\."];
 
-    auto allDoc = usage ~ doc ~ typeOptions;
-    auto arguments = docopt.docopt(allDoc, args[1..$], false, "0.2.0");
+    bool help = false;
+    bool help_types = false;
 
-    if (arguments["--help"].isTrue())
+    bool reverse = false;
+    bool literal = false;
+    bool case_insensitive = false;
+    bool word_regex = false;
+    bool no_recurse = false;
+    bool follow = false;
+
+    bool name_only = false;
+    bool with_filename = true;
+    bool no_filename = false;
+
+    bool silent = false;
+
+    bool find_files = false;
+    bool sort_files = false;
+
+    bool use_d = false;
+    bool no_d = false;
+
+    bool use_json = false;
+    bool no_json = false;
+
+    getopt(args,
+           std.getopt.config.passThrough,
+           "help", &help,
+           "help-types", &help_types,
+           "reverse|v", &reverse,
+           "literal|Q", &literal,
+           "case-insensitive|i", &case_insensitive,
+           "word-regex|w", &word_regex,
+           "no-recurse|n", &no_recurse,
+           "follow", &follow,
+           "name-only|g", &name_only,
+           "with-filename|H", &with_filename,
+           "no-filename|h", &no_filename,
+           "silent|s", &silent,
+           "find-files|f", &find_files,
+           "sort-files|g", &sort_files,
+           "d", &use_d,
+           "no-d", &no_d,
+           "json", &use_json,
+           "no-json", &no_json
+        );
+
+    if (help)
     {
         write(usage);
         writeln(doc);
         return 0;
     }
 
-    if (arguments["--help-types"].isTrue())
+    if (help_types)
     {
         write(usage);
         writeln(typeOptions);
         return 0;
     }
 
-//    writeln(arguments);
-
     auto spanMode = SpanMode.breadth;
-    if (arguments["--no-recurse"].isTrue())
+    if (no_recurse)
     {
         spanMode = SpanMode.shallow;
     }
-    bool follow = arguments["--follow"].isTrue();
 
     auto flags = "";
-    if (arguments["--case-insensitive"].isTrue())
+    if (case_insensitive)
     {
         flags ~= "i";
     }
 
-    if (arguments["FILES"].isEmpty())
+    if (args.length == 1 && !find_files)
     {
-        arguments["FILES"].add(".");
+        writeln(usage);
+        return 1;
+    }
+
+    string pattern;
+    string[] files;
+    if (args.length == 1 && find_files)
+    {
+        files = ["."];
+    }
+    else if (args.length > 1)
+    {
+        pattern = args[1];
+        files = ["."];
+    }
+    else if (args.length > 2)
+    {
+        pattern = args[1];
+        files = args[2..$];
     }
 
     int[string] defaultExts;
@@ -295,10 +360,19 @@ File type options:
 
     int[string] userExts;
     int[string] userNames;
-    if (arguments["--d"].isTrue())
+    if (no_d)
     {
-        addDFiles(userExts);
+        removeDFiles(defaultExts);
     }
+    else
+    {
+        if (use_d)
+        {
+            addDFiles(userExts);
+        }
+    }
+
+/*
     if (arguments["--c"].isTrue())
     {
         addCFiles(userExts);
@@ -336,10 +410,12 @@ File type options:
     {
         addJavascriptFiles(userExts);
     }
-    if (arguments["--json"].isTrue())
+*/
+    if (use_json)
     {
         addJSONFiles(userExts);
     }
+/*
     if (arguments["--powershell"].isTrue())
     {
         addPowershellFiles(userExts);
@@ -356,42 +432,41 @@ File type options:
     {
         addSWIGFiles(userExts);
     }
+*/
+
     if (userExts.length > 0 || userNames.length > 0)
     {
         defaultExts = userExts;
         defaultNames = userNames;
     }
 
-//    writeln(arguments["FILES"]);
-
-    auto FILES = arguments["FILES"].asList();
     try
     {
-        if (FILES.length == 1 && FILES[0] == "-")
+        if (files.length == 1 && files[0] == "-")
         {
-            arguments["--no-filename"] = new docopt.ArgValue(true);
+            no_filename = true;
         }
-        else if (FILES.length == 1 && FILES[0].isFile && arguments["--with-filename"].isFalse())
+        else if (files.length == 1 && files[0].isFile && !with_filename)
         {
-            arguments["--no-filename"] = new docopt.ArgValue(true);
+            no_filename = true;
         }
-        else if (arguments["--with-filename"].isTrue())
+        else if (with_filename)
         {
-            arguments["--no-filename"] = new docopt.ArgValue(false);
+            no_filename = false;
         }
     }
     catch(std.file.FileException e)
     {
-        if (arguments["-s"].isFalse)
+        if (silent)
         {
-            writeln("Unknown file: ", FILES[0]);
+            writeln("Unknown file: ", files[0]);
         }
         return -1;
     }
 
     uint[string] ignoreDirs = [".git":1, ".hg":1, ".svn":1, ".dub":1, "CVS":1, ".DS_Store":1];
     string[] fileList;
-    foreach(item; FILES)
+    foreach(item; files)
     {
         try
         {
@@ -402,8 +477,8 @@ File type options:
             else if (item.isDir)
             {
                 auto thisDir = buildNormalizedPath(item);
-                auto files = dirEntries(thisDir, spanMode, follow);
-                foreach(fileName; files)
+                auto dirFiles = dirEntries(thisDir, spanMode, follow);
+                foreach(fileName; dirFiles)
                 {
                     if (baseName(dirName(fileName)) in ignoreDirs)
                     {
@@ -419,19 +494,21 @@ File type options:
         }
         catch(std.file.FileException e)
         {
-            if (arguments["-s"].isFalse)
+            if (silent)
             {
                 writeln("Unknown file: ", item);
             }
         }
     }
 
-    if (arguments["--sort-files"].isTrue)
+    //writeln(fileList);
+
+    if (sort_files)
     {
         std.algorithm.sort(fileList);
     }
 
-    if (arguments["-f"].isTrue)
+    if (find_files)
     {
         foreach(filename; fileList)
         {
@@ -440,12 +517,11 @@ File type options:
         return 0;
     }
 
-    auto pattern = arguments["PATTERN"].toString();
-    if (arguments["--literal"].isTrue())
+    if (literal)
     {
         pattern = translate(pattern, metaTable);
     }
-    if (arguments["--word-regex"].isTrue())
+    if (word_regex)
     {
         pattern = format("\\b%s\\b", pattern);
     }
@@ -473,11 +549,13 @@ File type options:
         switch(bom)
         {
             case BOM.UTF16LE, BOM.UTF16BE:
-                searchOneFileStream!wchar(inp, filename, wmatcher, arguments);
+                searchOneFileStream!wchar(inp, filename, wmatcher,
+                                          reverse, name_only, no_filename);
                 break;
             case BOM.UTF8:
             default:
-                searchOneFileStream!char(inp, filename, matcher, arguments);
+                searchOneFileStream!char(inp, filename, matcher,
+                                         reverse, name_only, no_filename);
                 break;
         }
 
