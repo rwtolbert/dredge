@@ -17,7 +17,7 @@ import std.stream;
 import std.cstream;
 import std.getopt;
 
-//import docopt;
+import docopt;
 
 public bool extMatch(const DirEntry de, const int[string] exts)
 {
@@ -29,121 +29,20 @@ public bool nameMatch(const DirEntry de, const int[string] names)
     return names.get(baseName(de.name), 0) == 1;
 }
 
-void addDFiles(ref int[string] exts)
+void addExts(ref int[string] exts, const string input, int value=1)
 {
-    exts[".d"] = 1;
+    foreach(e; split(input, " "))
+    {
+        exts[e] = value;
+    }
 }
 
-void removeDFiles(ref int[string] exts)
+void addNames(ref int[string] names, const string input, int value=1)
 {
-    exts[".d"] = 0;
-}
-
-void addCFiles(ref int[string] exts)
-{
-    exts[".c"] = 1;
-    exts[".h"] = 1;
-}
-
-void addCPPFiles(ref int[string] exts)
-{
-    exts[".h"] = 1;
-    exts[".hh"] = 1;
-    exts[".cc"] = 1;
-    exts[".cpp"] = 1;
-    exts[".cxx"] = 1;
-    exts[".c++"] = 1;
-    exts[".hpp"] = 1;
-    exts[".hxx"] = 1;
-    exts[".tpp"] = 1;
-}
-
-void addCSharpFiles(ref int[string] exts)
-{
-    exts[".cs"] = 1;
-}
-
-void addCoffeescriptFiles(ref int[string] exts)
-{
-    exts[".coffee"] = 1;
-}
-
-void addFSharpFiles(ref int[string] exts)
-{
-    exts[".fs"] = 1;
-    exts[".fsx"] = 1;
-}
-
-void addGoFiles(ref int[string] exts)
-{
-    exts[".go"] = 1;
-}
-
-void addPyFiles(ref int[string] exts)
-{
-    exts[".py"] = 1;
-}
-
-void addPowershellFiles(ref int[string] exts)
-{
-    exts[".ps1"] = 1;
-    exts[".psm1"] = 1;
-    exts[".psd1"] = 1;
-    exts[".psc1"] = 1;
-}
-
-void addHyFiles(ref int[string] exts)
-{
-    exts[".hy"] = 1;
-}
-
-void addJavascriptFiles(ref int[string] exts)
-{
-    exts[".js"] = 1;
-}
-
-void addJSONFiles(ref int[string] exts)
-{
-    exts[".json"] = 1;
-}
-
-void addRubyFiles(ref int[string] exts, ref int[string] names)
-{
-    exts[".rb"] = 1;
-    exts[".rhtml"] = 1;
-    exts[".rjs"] = 1;
-    exts[".rxml"] = 1;
-    exts[".rake"] = 1;
-    exts[".spec"] = 1;
-    names["Rakefile"] = 1;
-}
-
-void addCMakeFiles(ref int[string] exts, ref int[string] names)
-{
-    exts[".cmake"] = 1;
-    names["CMakeLists.txt"] = 1;
-}
-
-void addSWIGFiles(ref int[string] exts)
-{
-    exts[".i"] = 1;
-}
-
-void getDefaultExtensions(ref int[string] exts, ref int[string] names)
-{
-    addDFiles(exts);
-    addCFiles(exts);
-    addCMakeFiles(exts, names);
-    addCoffeescriptFiles(exts);
-    addCPPFiles(exts);
-    addCSharpFiles(exts);
-    addFSharpFiles(exts);
-    addJavascriptFiles(exts);
-    addJSONFiles(exts);
-    addPowershellFiles(exts);
-    addPyFiles(exts);
-    addRubyFiles(exts, names);
-    addSWIGFiles(exts);
+    foreach(n; split(input, " "))
+    {
+        names[n] = value;
+    }
 }
 
 void searchOneFileStream(T)(InputStream inp, const string filename,
@@ -181,6 +80,26 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
     }
 }
 
+template GenRule(string ftype, string inputs, string names)
+{
+    const char[] GenRule = format("""
+    if (no_%s)
+    {
+        addExts(defaultExts, \"%s\", 0);
+        addNames(defaultNames, \"%s\", 0);
+    }
+    else
+    {
+        addExts(defaultExts, \"%s\", 1);
+        addNames(defaultNames, \"%s\", 1);
+        if (use_%s)
+        {
+            addExts(userExts, \"%s\", 1);
+            addNames(userNames, \"%s\", 1);
+        }
+    }
+""", ftype, inputs, names, inputs, names, ftype, inputs, names);
+}
 
 int main(string[] args)
 {
@@ -277,11 +196,50 @@ File type options:
     bool find_files = false;
     bool sort_files = false;
 
+    bool use_c = false;
+    bool no_c = false;
+
+    bool use_cpp = false;
+    bool no_cpp = false;
+
+    bool use_cmake = false;
+    bool no_cmake = false;
+
+    bool use_coffee = false;
+    bool no_coffee = false;
+
+    bool use_csharp = false;
+    bool no_csharp = false;
+
     bool use_d = false;
     bool no_d = false;
 
+    bool use_fsharp = false;
+    bool no_fsharp = false;
+
+    bool use_go = false;
+    bool no_go = false;
+
+    bool use_hy = false;
+    bool no_hy = false;
+
+    bool use_js = false;
+    bool no_js = false;
+
     bool use_json = false;
     bool no_json = false;
+
+    bool use_powershell = false;
+    bool no_powershell = false;
+
+    bool use_py = false;
+    bool no_py = false;
+
+    bool use_ruby = false;
+    bool no_ruby = false;
+
+    bool use_swig = false;
+    bool no_swig = false;
 
     getopt(args,
            std.getopt.config.passThrough,
@@ -299,10 +257,21 @@ File type options:
            "silent|s", &silent,
            "find-files|f", &find_files,
            "sort-files|g", &sort_files,
-           "d", &use_d,
-           "no-d", &no_d,
-           "json", &use_json,
-           "no-json", &no_json
+           "c", &use_c, "no-c", &no_c,
+           "cpp", &use_cpp, "no-cpp", &no_cpp,
+           "cmake", &use_cmake, "no-cmake", &no_cmake,
+           "coffee", &use_coffee, "no-coffee", &no_coffee,
+           "csharp", &use_csharp, "no-csharp", &no_csharp,
+           "d", &use_d, "no-d", &no_d,
+           "fsharp", &use_fsharp, "no-fsharp", &no_fsharp,
+           "go", &use_go, "no-go", &no_go,
+           "hy", &use_hy, "no-hy", &no_hy,
+           "js", &use_js, "no-js", &no_js,
+           "json", &use_json, "no-json", &no_json,
+           "powershell", &use_powershell, "no-powershell", &no_powershell,
+           "py", &use_py, "no-py", &no_py,
+           "ruby", &use_ruby, "no-ruby", &no_ruby,
+           "swig", &use_swig, "no-swig", &no_swig
         );
 
     if (help)
@@ -337,102 +306,58 @@ File type options:
         return 1;
     }
 
-    string pattern;
+    string pattern = "";
     string[] files;
-    if (args.length == 1 && find_files)
+    if (find_files)
     {
-        files = ["."];
+        if (args.length == 1)
+        {
+            files = ["."];
+        }
+        else
+        {
+            files = args[1..$];
+        }
     }
-    else if (args.length > 1)
+    else
     {
-        pattern = args[1];
-        files = ["."];
-    }
-    else if (args.length > 2)
-    {
-        pattern = args[1];
-        files = args[2..$];
+        if (args.length == 2)
+        {
+            pattern = args[1];
+            files = ["."];
+        }
+        else if (args.length > 2)
+        {
+            pattern = args[1];
+            files = args[2..$];
+        }
+        else
+        {
+            writeln(usage);
+            return 1;
+        }
     }
 
     int[string] defaultExts;
     int[string] defaultNames;
-    getDefaultExtensions(defaultExts, defaultNames);
-
     int[string] userExts;
     int[string] userNames;
-    if (no_d)
-    {
-        removeDFiles(defaultExts);
-    }
-    else
-    {
-        if (use_d)
-        {
-            addDFiles(userExts);
-        }
-    }
 
-/*
-    if (arguments["--c"].isTrue())
-    {
-        addCFiles(userExts);
-    }
-    if (arguments["--cpp"].isTrue())
-    {
-        addCFiles(userExts);
-        addCPPFiles(userExts);
-    }
-    if (arguments["--cmake"].isTrue())
-    {
-        addCMakeFiles(userExts, userNames);
-    }
-    if (arguments["--coffee"].isTrue())
-    {
-        addCoffeescriptFiles(userExts);
-    }
-    if (arguments["--csharp"].isTrue())
-    {
-        addCSharpFiles(userExts);
-    }
-    if (arguments["--fsharp"].isTrue())
-    {
-        addFSharpFiles(userExts);
-    }
-    if (arguments["--go"].isTrue())
-    {
-        addGoFiles(userExts);
-    }
-    if (arguments["--hy"].isTrue())
-    {
-        addHyFiles(userExts);
-    }
-    if (arguments["--js"].isTrue())
-    {
-        addJavascriptFiles(userExts);
-    }
-*/
-    if (use_json)
-    {
-        addJSONFiles(userExts);
-    }
-/*
-    if (arguments["--powershell"].isTrue())
-    {
-        addPowershellFiles(userExts);
-    }
-    if (arguments["--py"].isTrue())
-    {
-        addPyFiles(userExts);
-    }
-    if (arguments["--ruby"].isTrue())
-    {
-        addRubyFiles(userExts, userNames);
-    }
-    if (arguments["--swig"].isTrue())
-    {
-        addSWIGFiles(userExts);
-    }
-*/
+    mixin(GenRule!("c", ".c .h", ""));
+    mixin(GenRule!("cpp", ".cpp .cc .cxx .c++ .hpp .tpp .hh .h .hxx", ""));
+    mixin(GenRule!("cmake", ".cmake", "CMakeLists.txt"));
+    mixin(GenRule!("coffee", ".coffee", ""));
+    mixin(GenRule!("csharp", ".cs", ""));
+    mixin(GenRule!("d", ".d", ""));
+    mixin(GenRule!("fsharp", ".fs .fsx", ""));
+    mixin(GenRule!("go", ".go", ""));
+    mixin(GenRule!("hy", ".hy", ""));
+    mixin(GenRule!("js", ".js", ""));
+    mixin(GenRule!("json", ".json", ""));
+    mixin(GenRule!("powershell", ".ps1 .psd1 .psm1 .psc1", ""));
+    mixin(GenRule!("py", ".py", ""));
+    mixin(GenRule!("ruby", ".rb .rhtml .rjs .rxml .erb .rake .spec", "Rakefile"));
+    mixin(GenRule!("swig", ".i", ""));
 
     if (userExts.length > 0 || userNames.length > 0)
     {
