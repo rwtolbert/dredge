@@ -80,9 +80,14 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
     }
 }
 
-template GenRule(string ftype, string inputs, string names)
+template DeclareType(string ftype, string inputs, string names)
 {
-    const char[] GenRule = format("""
+    const char[] DeclareType = format("""
+    bool use_%s = false;
+    bool no_%s = false;
+    getopt(args,
+           std.getopt.config.passThrough,
+           \"%s\", &use_%s, \"no%s\", &no_%s);
     if (no_%s)
     {
         addExts(defaultExts, \"%s\", 0);
@@ -98,7 +103,8 @@ template GenRule(string ftype, string inputs, string names)
             addNames(userNames, \"%s\", 1);
         }
     }
-""", ftype, inputs, names, inputs, names, ftype, inputs, names);
+    typeOptions ~= \"    --[no]%-12s  %s %s\n\";
+""", ftype, ftype, ftype, ftype, ftype, ftype, ftype, inputs, names, inputs, names, ftype, inputs, names, ftype, inputs, names);
 }
 
 int main(string[] args)
@@ -146,23 +152,7 @@ File inclusion options:
 
     auto typeOptions = "
 File type options:
-    --c           C files        [.c .h]
-    --cpp         C++ files      [.cpp .cc .cxx .c++ .hpp .tpp .hh .h .hxx]
-    --clojure     Clojure files  [.clj]
-    --cmake       CMake files    [CMakeLists.txt .cmake]
-    --coffee      Coffeescript   [.coffee]
-    --csharp      C# files       [.cs]
-    --d           D files        [.d]
-    --fsharp      F# files       [.fs .fsx]
-    --go          Go files       [.go]
-    --hy          Hy files       [.hy]
-    --js          Javascript     [.js]
-    --json        JSON           [.json]
-    --powershell  Powershell     [.ps1 .psm1 .psd1 .psc1]
-    --py          Python files   [.py]
-    --ruby        Ruby files     [.rb .rhtml .rjs .rxml .erb .rake .spec Rakefile]
-    --swig        SWIG files     [.i]
-    ";
+";
 
     string[dchar] metaTable = ['[': "\\[",
                                '{': "\\{",
@@ -179,6 +169,7 @@ File type options:
 
     bool help = false;
     bool help_types = false;
+    bool show_version = false;
 
     bool reverse = false;
     bool literal = false;
@@ -196,55 +187,86 @@ File type options:
     bool find_files = false;
     bool sort_files = false;
 
-    bool use_c = false;
-    bool no_c = false;
+    int[string] defaultExts;
+    int[string] defaultNames;
+    int[string] userExts;
+    int[string] userNames;
 
-    bool use_cpp = false;
-    bool no_cpp = false;
-
-    bool use_cmake = false;
-    bool no_cmake = false;
-
-    bool use_coffee = false;
-    bool no_coffee = false;
-
-    bool use_csharp = false;
-    bool no_csharp = false;
-
-    bool use_d = false;
-    bool no_d = false;
-
-    bool use_fsharp = false;
-    bool no_fsharp = false;
-
-    bool use_go = false;
-    bool no_go = false;
-
-    bool use_hy = false;
-    bool no_hy = false;
-
-    bool use_js = false;
-    bool no_js = false;
-
-    bool use_json = false;
-    bool no_json = false;
-
-    bool use_powershell = false;
-    bool no_powershell = false;
-
-    bool use_py = false;
-    bool no_py = false;
-
-    bool use_ruby = false;
-    bool no_ruby = false;
-
-    bool use_swig = false;
-    bool no_swig = false;
+    mixin(DeclareType!("ada", ".ada .adb .ads", ""));
+    mixin(DeclareType!("asm", ".asm .s", ""));
+    mixin(DeclareType!("asp", ".asp", ""));
+    mixin(DeclareType!("aspx", ".master .ascx .asmx .aspx .svc", ""));
+    mixin(DeclareType!("batch", ".bat .cmd", ""));
+    mixin(DeclareType!("c", ".c .h", ""));
+    mixin(DeclareType!("cfmx", ".cfc .cfm .cfml", ""));
+    mixin(DeclareType!("clojure", ".clj", ""));
+    mixin(DeclareType!("cmake", ".cmake", "CMakeLists.txt"));
+    mixin(DeclareType!("coffee", ".coffee", ""));
+    mixin(DeclareType!("cpp", ".cpp .cc .cxx .c++ .hpp .tpp .hh .h .hxx", ""));
+    mixin(DeclareType!("csharp", ".cs", ""));
+    mixin(DeclareType!("css", ".css", ""));
+    mixin(DeclareType!("d", ".d", ""));
+    mixin(DeclareType!("dart", ".dart", ""));
+    mixin(DeclareType!("delphi", ".pas .int .dfm .nfm .dof .dpk .dproj .groupproj .bdsgroup .bdsproj", ""));
+    mixin(DeclareType!("elisp", ".el", ""));
+    mixin(DeclareType!("elixir", ".ex .exs", ""));
+    mixin(DeclareType!("erlang", ".erl .hrl", ""));
+    mixin(DeclareType!("fortran", ".f .f77 .f90 .f95 .f03 .for .ftn .fpp", ""));
+    mixin(DeclareType!("fsharp", ".fs .fsx", ""));
+    mixin(DeclareType!("go", ".go", ""));
+    mixin(DeclareType!("groovy", ".groovy .gtmpl .gpp .grunit .gradle", ""));
+    mixin(DeclareType!("haskell", ".hs .lhs", ""));
+    mixin(DeclareType!("h", ".h", ""));
+    mixin(DeclareType!("html", ".html .htm", ""));
+    mixin(DeclareType!("hy", ".hy", ""));
+    mixin(DeclareType!("java", ".java .properties", ""));
+    mixin(DeclareType!("js", ".js", ""));
+    mixin(DeclareType!("json", ".json", ""));
+    mixin(DeclareType!("jsp", ".jsp .jspx .jhtm .jhtml", ""));
+    mixin(DeclareType!("less", ".less", ""));
+    mixin(DeclareType!("lisp", ".lisp .lsp .cl", ""));
+    mixin(DeclareType!("lua", ".lua", ""));
+    mixin(DeclareType!("make", ".mk .make", "makefile Makefile GNUmakefile"));
+    mixin(DeclareType!("matlab", ".m", ""));
+    mixin(DeclareType!("md", ".md .mkd", ""));
+    mixin(DeclareType!("nimrod", ".nim", ""));
+    mixin(DeclareType!("objc", ".m .h", ""));
+    mixin(DeclareType!("objcpp", ".mm .h", ""));
+    mixin(DeclareType!("ocaml", ".ml .mli", ""));
+    mixin(DeclareType!("parrot", ".pir .pasm .pmc .ops .pod .pg .tg", ""));
+    mixin(DeclareType!("perl", ".pl .pm .pod .t .psgi", ""));
+    mixin(DeclareType!("php", ".php .phpt .php3 .php4 .php5 .phtml", ""));
+    mixin(DeclareType!("plone", ".pt .cpt .metadata .cpy .py", ""));
+    mixin(DeclareType!("powershell", ".ps1 .psd1 .psm1 .psc1", ""));
+    mixin(DeclareType!("py", ".py", ""));
+    mixin(DeclareType!("r", ".R", ""));
+    mixin(DeclareType!("racket", ".rkt .scm .ss .sch", ""));
+    mixin(DeclareType!("rake", "", "Rakefile"));
+    mixin(DeclareType!("rst", ".rst .txt", ""));
+    mixin(DeclareType!("ruby", ".rb .rhtml .rjs .rxml .erb .rake .spec", "Rakefile"));
+    mixin(DeclareType!("rust", ".rs", ""));
+    mixin(DeclareType!("sass", ".sass", ""));
+    mixin(DeclareType!("scala", ".scala", ""));
+    mixin(DeclareType!("scheme", ".scm .ss", ""));
+    mixin(DeclareType!("shell", ".sh .bash .csh .tcsh .ksh .zsh .fish", ""));
+    mixin(DeclareType!("smalltalk", ".st", ""));
+    mixin(DeclareType!("sql", ".sql .ctl", ""));
+    mixin(DeclareType!("swig", ".i", ""));
+    mixin(DeclareType!("tcl", ".tcl .itcl .itk", ""));
+    mixin(DeclareType!("tex", ".tex .cls .sty", ""));
+    mixin(DeclareType!("textile", ".textile", ""));
+    mixin(DeclareType!("vb", ".bas .cls .frm .ctl .vb .resx", ""));
+    mixin(DeclareType!("verilog", ".v .vh .sv", ""));
+    mixin(DeclareType!("vhdl", ".vhd .vhdl", ""));
+    mixin(DeclareType!("vim", ".vim", ""));
+    mixin(DeclareType!("xml", ".xml .dtd .xsl .xslt .ent", ""));
+    mixin(DeclareType!("yaml", ".yaml .yml", ""));
 
     getopt(args,
            std.getopt.config.passThrough,
            "help", &help,
            "help-types", &help_types,
+           "version", &show_version,
            "reverse|v", &reverse,
            "literal|Q", &literal,
            "case-insensitive|i", &case_insensitive,
@@ -257,21 +279,6 @@ File type options:
            "silent|s", &silent,
            "find-files|f", &find_files,
            "sort-files|g", &sort_files,
-           "c", &use_c, "no-c", &no_c,
-           "cpp", &use_cpp, "no-cpp", &no_cpp,
-           "cmake", &use_cmake, "no-cmake", &no_cmake,
-           "coffee", &use_coffee, "no-coffee", &no_coffee,
-           "csharp", &use_csharp, "no-csharp", &no_csharp,
-           "d", &use_d, "no-d", &no_d,
-           "fsharp", &use_fsharp, "no-fsharp", &no_fsharp,
-           "go", &use_go, "no-go", &no_go,
-           "hy", &use_hy, "no-hy", &no_hy,
-           "js", &use_js, "no-js", &no_js,
-           "json", &use_json, "no-json", &no_json,
-           "powershell", &use_powershell, "no-powershell", &no_powershell,
-           "py", &use_py, "no-py", &no_py,
-           "ruby", &use_ruby, "no-ruby", &no_ruby,
-           "swig", &use_swig, "no-swig", &no_swig
         );
 
     if (help)
@@ -285,6 +292,12 @@ File type options:
     {
         write(usage);
         writeln(typeOptions);
+        return 0;
+    }
+
+    if (show_version)
+    {
+        writeln("0.3.0");
         return 0;
     }
 
@@ -337,27 +350,6 @@ File type options:
             return 1;
         }
     }
-
-    int[string] defaultExts;
-    int[string] defaultNames;
-    int[string] userExts;
-    int[string] userNames;
-
-    mixin(GenRule!("c", ".c .h", ""));
-    mixin(GenRule!("cpp", ".cpp .cc .cxx .c++ .hpp .tpp .hh .h .hxx", ""));
-    mixin(GenRule!("cmake", ".cmake", "CMakeLists.txt"));
-    mixin(GenRule!("coffee", ".coffee", ""));
-    mixin(GenRule!("csharp", ".cs", ""));
-    mixin(GenRule!("d", ".d", ""));
-    mixin(GenRule!("fsharp", ".fs .fsx", ""));
-    mixin(GenRule!("go", ".go", ""));
-    mixin(GenRule!("hy", ".hy", ""));
-    mixin(GenRule!("js", ".js", ""));
-    mixin(GenRule!("json", ".json", ""));
-    mixin(GenRule!("powershell", ".ps1 .psd1 .psm1 .psc1", ""));
-    mixin(GenRule!("py", ".py", ""));
-    mixin(GenRule!("ruby", ".rb .rhtml .rjs .rxml .erb .rake .spec", "Rakefile"));
-    mixin(GenRule!("swig", ".i", ""));
 
     if (userExts.length > 0 || userNames.length > 0)
     {
