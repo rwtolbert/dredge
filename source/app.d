@@ -197,7 +197,7 @@ File type options:
     mixin(DeclareType!("asp", ".asp", ""));
     mixin(DeclareType!("aspx", ".master .ascx .asmx .aspx .svc", ""));
     mixin(DeclareType!("batch", ".bat .cmd", ""));
-    mixin(DeclareType!("c", ".c .h", ""));
+    mixin(DeclareType!("cc", ".c .h", ""));
     mixin(DeclareType!("cfmx", ".cfc .cfm .cfml", ""));
     mixin(DeclareType!("clojure", ".clj", ""));
     mixin(DeclareType!("cmake", ".cmake", "CMakeLists.txt"));
@@ -205,7 +205,7 @@ File type options:
     mixin(DeclareType!("cpp", ".cpp .cc .cxx .c++ .hpp .tpp .hh .h .hxx", ""));
     mixin(DeclareType!("csharp", ".cs", ""));
     mixin(DeclareType!("css", ".css", ""));
-    mixin(DeclareType!("d", ".d", ""));
+    mixin(DeclareType!("dd", ".d", ""));
     mixin(DeclareType!("dart", ".dart", ""));
     mixin(DeclareType!("delphi", ".pas .int .dfm .nfm .dof .dpk .dproj .groupproj .bdsgroup .bdsproj", ""));
     mixin(DeclareType!("elisp", ".el", ""));
@@ -216,7 +216,7 @@ File type options:
     mixin(DeclareType!("go", ".go", ""));
     mixin(DeclareType!("groovy", ".groovy .gtmpl .gpp .grunit .gradle", ""));
     mixin(DeclareType!("haskell", ".hs .lhs", ""));
-    mixin(DeclareType!("h", ".h", ""));
+    mixin(DeclareType!("hh", ".h", ""));
     mixin(DeclareType!("html", ".html .htm", ""));
     mixin(DeclareType!("hy", ".hy", ""));
     mixin(DeclareType!("java", ".java .properties", ""));
@@ -239,7 +239,7 @@ File type options:
     mixin(DeclareType!("plone", ".pt .cpt .metadata .cpy .py", ""));
     mixin(DeclareType!("powershell", ".ps1 .psd1 .psm1 .psc1", ""));
     mixin(DeclareType!("py", ".py", ""));
-    mixin(DeclareType!("r", ".R", ""));
+    mixin(DeclareType!("rr", ".R", ""));
     mixin(DeclareType!("racket", ".rkt .scm .ss .sch", ""));
     mixin(DeclareType!("rake", "", "Rakefile"));
     mixin(DeclareType!("rst", ".rst .txt", ""));
@@ -264,6 +264,7 @@ File type options:
 
     getopt(args,
            std.getopt.config.passThrough,
+           std.getopt.config.caseSensitive,
            "help", &help,
            "help-types", &help_types,
            "version", &show_version,
@@ -299,18 +300,6 @@ File type options:
     {
         writeln("0.3.0");
         return 0;
-    }
-
-    auto spanMode = SpanMode.breadth;
-    if (no_recurse)
-    {
-        spanMode = SpanMode.shallow;
-    }
-
-    auto flags = "";
-    if (case_insensitive)
-    {
-        flags ~= "i";
     }
 
     if (args.length == 1 && !find_files)
@@ -351,10 +340,17 @@ File type options:
         }
     }
 
-    if (userExts.length > 0 || userNames.length > 0)
+    // make sure there are no extra flags
+    try
     {
-        defaultExts = userExts;
-        defaultNames = userNames;
+        getopt(args);
+    }
+    catch (object.Exception e)
+    {
+        writeln(e.msg);
+        write(usage);
+        writeln(doc);
+        return -1;
     }
 
     try
@@ -374,11 +370,31 @@ File type options:
     }
     catch(std.file.FileException e)
     {
-        if (silent)
+        if (!silent)
         {
             writeln("Unknown file: ", files[0]);
         }
         return -1;
+    }
+
+
+    auto spanMode = SpanMode.breadth;
+    if (no_recurse)
+    {
+        spanMode = SpanMode.shallow;
+    }
+
+    auto flags = "";
+    if (case_insensitive)
+    {
+        flags ~= "i";
+    }
+
+
+    if (userExts.length > 0 || userNames.length > 0)
+    {
+        defaultExts = userExts;
+        defaultNames = userNames;
     }
 
     uint[string] ignoreDirs = [".git":1, ".hg":1, ".svn":1, ".dub":1, "CVS":1, ".DS_Store":1];
