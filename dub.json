@@ -4,6 +4,7 @@
 	"copyright": "Copyright (C) 2014, Bob Tolbert",
 	"authors": ["Bob Tolbert"],
 	"dependencies": {
-        "docopt": ">=0.6.1-b.1"
+        "docopt": ">=0.6.1-b.1",
+        "colorize" : ">=1.0.5"
 	}
 }

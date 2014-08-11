@@ -17,7 +17,7 @@ import std.stream;
 import std.cstream;
 import std.getopt;
 
-import docopt;
+import colorize;
 
 public bool extMatch(const DirEntry de, const int[string] exts)
 {
@@ -47,12 +47,22 @@ void addNames(ref int[string] names, const string input, int value=1)
 
 void searchOneFileStream(T)(InputStream inp, const string filename,
                             Regex!T matcher, bool reverse, bool name_only,
-                            bool no_filename)
+                            bool no_filename, bool showColor,
+                            const bg matchColor=bg.yellow,
+                            const fg lineColor=fg.yellow,
+                            const fg fileColor=fg.green)
 {
     bool first = true;
+
+    string cfilename = filename;
+    if (showColor)
+    {
+        cfilename = color(cfilename, fileColor, bg.init, mode.bold);
+    }
+
     foreach(ulong lcount, T[] line; inp)
     {
-        auto captures = matchFirst(line, matcher);
+        auto captures = matchAll(line, matcher);
         bool printMatch = !captures.empty() && !reverse;
         bool printNoMatch = captures.empty() && reverse;
         if (printMatch || printNoMatch)
@@ -67,14 +77,20 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                 {
                     if (!no_filename)
                     {
-                        writeln(format("\n%s", filename));
+                        cwritefln("\n%s", cfilename);
                     }
                 }
                 first = false;
             }
             if (!name_only)
             {
-                writeln(format("%d:%s", lcount, line));
+                string lineNo = format("%d", lcount);
+                if (showColor)
+                {
+                    line = replaceAll(line, matcher, color("$0", fg.black, matchColor, mode.bold));
+                    lineNo = color(lineNo, lineColor, bg.init, mode.bold);
+                }
+                cwritefln("%s:%s", lineNo, line);
             }
         }
     }
@@ -179,6 +195,7 @@ File type options:
     bool follow = false;
 
     bool name_only = false;
+    bool no_color = false;
     bool with_filename = true;
     bool no_filename = false;
 
@@ -262,8 +279,9 @@ File type options:
     mixin(DeclareType!("xml", ".xml .dtd .xsl .xslt .ent", ""));
     mixin(DeclareType!("yaml", ".yaml .yml", ""));
 
-    getopt(args,
-           std.getopt.config.passThrough,
+    try
+    {
+        getopt(args,
            std.getopt.config.caseSensitive,
            "help", &help,
            "help-types", &help_types,
@@ -275,12 +293,21 @@ File type options:
            "no-recurse|n", &no_recurse,
            "follow", &follow,
            "name-only|g", &name_only,
+           "no-color", &no_color,
            "with-filename|H", &with_filename,
            "no-filename|h", &no_filename,
            "silent|s", &silent,
            "find-files|f", &find_files,
            "sort-files|g", &sort_files,
         );
+    }
+    catch (object.Exception e)
+    {
+        writeln(e.msg);
+        write(usage);
+        writeln(doc);
+        return -1;
+    }
 
     if (help)
     {
@@ -298,7 +325,7 @@ File type options:
 
     if (show_version)
     {
-        writeln("0.3.0");
+        writeln("0.4.0");
         return 0;
     }
 
@@ -338,19 +365,6 @@ File type options:
             writeln(usage);
             return 1;
         }
-    }
-
-    // make sure there are no extra flags
-    try
-    {
-        getopt(args);
-    }
-    catch (object.Exception e)
-    {
-        writeln(e.msg);
-        write(usage);
-        writeln(doc);
-        return -1;
     }
 
     try
@@ -483,12 +497,12 @@ File type options:
         {
             case BOM.UTF16LE, BOM.UTF16BE:
                 searchOneFileStream!wchar(inp, filename, wmatcher,
-                                          reverse, name_only, no_filename);
+                                          reverse, name_only, no_filename, !no_color);
                 break;
             case BOM.UTF8:
             default:
                 searchOneFileStream!char(inp, filename, matcher,
-                                         reverse, name_only, no_filename);
+                                         reverse, name_only, no_filename, !no_color);
                 break;
         }
 
