@@ -103,7 +103,7 @@ template DeclareType(string ftype, string inputs, string names)
     bool no_%s = false;
     getopt(args,
            std.getopt.config.passThrough,
-           \"%s\", &use_%s, \"no%s\", &no_%s);
+           \"%s\", &use_%s, \"no-%s\", &no_%s);
     if (no_%s)
     {
         addExts(defaultExts, \"%s\", 0);
@@ -119,7 +119,7 @@ template DeclareType(string ftype, string inputs, string names)
             addNames(userNames, \"%s\", 1);
         }
     }
-    typeOptions ~= \"    --[no]%-12s  %s %s\n\";
+    typeOptions ~= \"    --[no-]%-12s  %s %s\n\";
 """, ftype, ftype, ftype, ftype, ftype, ftype, ftype, inputs, names, inputs, names, ftype, inputs, names, ftype, inputs, names);
 }
 
