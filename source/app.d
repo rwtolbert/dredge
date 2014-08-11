@@ -415,6 +415,10 @@ File type options:
     string[] fileList;
     foreach(item; files)
     {
+        if (item == ".")
+        {
+            item = getcwd();
+        }
         try
         {
             if (item == "-" || item.isFile)
