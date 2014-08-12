@@ -17,6 +17,7 @@ import std.stream;
 import std.cstream;
 import std.getopt;
 
+import docopt;
 import colorize;
 
 public bool extMatch(const DirEntry de, const int[string] exts)
@@ -46,20 +47,23 @@ void addNames(ref int[string] names, const string input, int value=1)
 }
 
 void searchOneFileStream(T)(InputStream inp, const string filename,
-                            Regex!T matcher, bool reverse, bool name_only,
-                            bool no_filename, bool showColor,
-                            const bg matchColor=bg.yellow,
-                            const fg lineColor=fg.yellow,
-                            const fg fileColor=fg.green)
+                            Regex!T matcher, docopt.ArgValue[string] flags,
+                            const bg matchColor=bg.yellow)
 {
     bool first = true;
+    bool reverse = flags["--reverse"].isTrue;
+    bool files_with_matches = flags["--files-with-matches"].isTrue;
+    bool files_without_match = flags["--files-without-match"].isTrue;
+    bool no_filename = flags["--no-filename"].isTrue;
+    bool showColor = flags["--no-color"].isFalse;
 
     string cfilename = filename;
     if (showColor)
     {
-        cfilename = color(cfilename, fileColor, bg.init, mode.bold);
+        cfilename = color(cfilename, flags["--filename-color"].toString);
     }
 
+    bool found = false;
     foreach(ulong lcount, T[] line; inp)
     {
         auto captures = matchAll(line, matcher);
@@ -67,11 +71,17 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
         bool printNoMatch = captures.empty() && reverse;
         if (printMatch || printNoMatch)
         {
+            found = true;
+            if (files_without_match)
+            {
+                break;
+            }
             if (first)
             {
-                if (name_only)
+                if (files_with_matches)
                 {
                     writeln(filename);
+                    break;
                 }
                 else
                 {
@@ -82,17 +92,21 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                 }
                 first = false;
             }
-            if (!name_only)
+            if (!files_with_matches && !files_without_match)
             {
                 string lineNo = format("%d", lcount);
                 if (showColor)
                 {
                     line = replaceAll(line, matcher, color("$0", fg.black, matchColor, mode.bold));
-                    lineNo = color(lineNo, lineColor, bg.init, mode.bold);
+                    lineNo = color(lineNo, flags["--line-color"].toString);
                 }
                 cwritefln("%s:%s", lineNo, line);
             }
         }
+    }
+    if (!found && files_without_match)
+    {
+        writeln(filename);
     }
 }
 
@@ -139,30 +153,34 @@ Arguments:
     FILES       files or directories to search. [default: .]
 
 Search options:
-    -v                     Reverse the match.
-    -Q --literal           Quote all meta-characters.
-    -i --case-insensitive  Case-insensitive match.
-    -w --word-regex        Match whole words only.
+    -v --reverse                 Reverse the match.
+    -Q --literal                 Quote all meta-characters.
+    -i --case-insensitive        Case-insensitive match.
+    -w --word-regex              Match whole words only.
 
 Output options:
-    -H --with-filename     Include filename before match.
-    -h --no-filename       No filename before match.
-    --no-color             no color output
-    -g, --name-only        Show only filename of matches
-    -s                     Suppress failure on missing or unreadable file.
+    -H --with-filename           Include filename before match.
+    -h --no-filename             No filename before match.
+    -l --files-with-matches      Only print FILE names containing matches
+    -L --files-without-match     Only print FILE names containing no match
+    --no-color                   No color output
+    --filename-color COLOR       Color for filename output  [default: green]
+    --line-color COLOR           Color for line numbers     [default: cyan]
+    --match-color COLOR          Color for match highlight  [default: yellow]
+    -s                           Suppress failure on missing or unreadable file.
 
 Base options:
     --help
-    --help-types           Show help on file type flags.
-    --version              Show version and exit.
+    --help-types                 Show help on file type flags.
+    --version                    Show version and exit.
 
 File find options:
-    -f --find-files        Only print files selected.
-    --sort-files           Sort the files found.
+    -f --find-files              Only print files selected.
+    --sort-files                 Sort the files found.
 
 File inclusion options:
-    -n, --no-recurse       No descending into subdirectories
-    --follow               Follow symlinks.  Default is off.
+    -n, --no-recurse             No descending into subdirectories
+    --follow                     Follow symlinks.  Default is off.
 
     ";
 
@@ -182,27 +200,6 @@ File type options:
                                '$': "\\$",
                                '\\': "\\\\",
                                '.': "\\."];
-
-    bool help = false;
-    bool help_types = false;
-    bool show_version = false;
-
-    bool reverse = false;
-    bool literal = false;
-    bool case_insensitive = false;
-    bool word_regex = false;
-    bool no_recurse = false;
-    bool follow = false;
-
-    bool name_only = false;
-    bool no_color = false;
-    bool with_filename = true;
-    bool no_filename = false;
-
-    bool silent = false;
-
-    bool find_files = false;
-    bool sort_files = false;
 
     int[string] defaultExts;
     int[string] defaultNames;
@@ -279,131 +276,65 @@ File type options:
     mixin(DeclareType!("xml", ".xml .dtd .xsl .xslt .ent", ""));
     mixin(DeclareType!("yaml", ".yaml .yml", ""));
 
-    try
-    {
-        getopt(args,
-           std.getopt.config.caseSensitive,
-           "help", &help,
-           "help-types", &help_types,
-           "version", &show_version,
-           "reverse|v", &reverse,
-           "literal|Q", &literal,
-           "case-insensitive|i", &case_insensitive,
-           "word-regex|w", &word_regex,
-           "no-recurse|n", &no_recurse,
-           "follow", &follow,
-           "name-only|g", &name_only,
-           "no-color", &no_color,
-           "with-filename|H", &with_filename,
-           "no-filename|h", &no_filename,
-           "silent|s", &silent,
-           "find-files|f", &find_files,
-           "sort-files|g", &sort_files,
-        );
-    }
-    catch (object.Exception e)
-    {
-        writeln(e.msg);
-        write(usage);
-        writeln(doc);
-        return -1;
-    }
+    auto flags = docopt.docopt(usage ~ doc, args[1..$], true, "0.4.1");
 
-    if (help)
-    {
-        write(usage);
-        writeln(doc);
-        return 0;
-    }
-
-    if (help_types)
+    if (flags["--help-types"].isTrue)
     {
         write(usage);
         writeln(typeOptions);
         return 0;
     }
 
-    if (show_version)
-    {
-        writeln("0.4.0");
-        return 0;
-    }
+    // foreach(k, v; flags)
+    // {
+    //     writeln(k, v);
+    // }
 
-    if (args.length == 1 && !find_files)
-    {
-        writeln(usage);
-        return 1;
-    }
-
-    string pattern = "";
     string[] files;
-    if (find_files)
+    if (flags["FILES"].asList.length == 0)
     {
-        if (args.length == 1)
-        {
-            files = ["."];
-        }
-        else
-        {
-            files = args[1..$];
-        }
+        files = ["."];
     }
     else
     {
-        if (args.length == 2)
-        {
-            pattern = args[1];
-            files = ["."];
-        }
-        else if (args.length > 2)
-        {
-            pattern = args[1];
-            files = args[2..$];
-        }
-        else
-        {
-            writeln(usage);
-            return 1;
-        }
+        files = flags["FILES"].asList;
     }
 
     try
     {
         if (files.length == 1 && files[0] == "-")
         {
-            no_filename = true;
+            flags["--no-filename"] = new docopt.ArgValue(true);
         }
-        else if (files.length == 1 && files[0].isFile && !with_filename)
+        else if (files.length == 1 && files[0].isFile && flags["--with-filename"].isFalse)
         {
-            no_filename = true;
+            flags["--no-filename"] = new docopt.ArgValue(true);
         }
-        else if (with_filename)
+        else if (flags["--with-filename"].isFalse)
         {
-            no_filename = false;
+            flags["--no-filename"] = new docopt.ArgValue(false);
         }
     }
     catch(std.file.FileException e)
     {
-        if (!silent)
+        if (flags["--silent"].isFalse)
         {
             writeln("Unknown file: ", files[0]);
         }
         return -1;
     }
 
-
     auto spanMode = SpanMode.breadth;
-    if (no_recurse)
+    if (flags["--no-recurse"].isTrue)
     {
         spanMode = SpanMode.shallow;
     }
 
-    auto flags = "";
-    if (case_insensitive)
+    auto regexFlags = "";
+    if (flags["--case-insensitive"].isTrue)
     {
-        flags ~= "i";
+        regexFlags ~= "i";
     }
-
 
     if (userExts.length > 0 || userNames.length > 0)
     {
@@ -428,7 +359,7 @@ File type options:
             else if (item.isDir)
             {
                 auto thisDir = buildNormalizedPath(item);
-                auto dirFiles = dirEntries(thisDir, spanMode, follow);
+                auto dirFiles = dirEntries(thisDir, spanMode, flags["--follow"].isTrue);
                 foreach(fileName; dirFiles)
                 {
                     if (baseName(dirName(fileName)) in ignoreDirs)
@@ -445,7 +376,7 @@ File type options:
         }
         catch(std.file.FileException e)
         {
-            if (silent)
+            if (flags["--silent"].isTrue)
             {
                 writeln("Unknown file: ", item);
             }
@@ -454,12 +385,12 @@ File type options:
 
     //writeln(fileList);
 
-    if (sort_files)
+    if (flags["--sort-files"].isTrue)
     {
         std.algorithm.sort(fileList);
     }
 
-    if (find_files)
+    if (flags["--find-files"].isTrue)
     {
         foreach(filename; fileList)
         {
@@ -468,16 +399,17 @@ File type options:
         return 0;
     }
 
-    if (literal)
+    string pattern = flags["PATTERN"].toString;
+    if (flags["--literal"].isTrue)
     {
         pattern = translate(pattern, metaTable);
     }
-    if (word_regex)
+    if (flags["--word-regex"].isTrue)
     {
         pattern = format("\\b%s\\b", pattern);
     }
-    auto matcher = regex(pattern, flags);
-    auto wmatcher = regex(std.utf.toUTF16(pattern), flags);
+    auto matcher = regex(pattern, regexFlags);
+    auto wmatcher = regex(std.utf.toUTF16(pattern), regexFlags);
 
     foreach(filename; fileList)
     {
@@ -500,13 +432,11 @@ File type options:
         switch(bom)
         {
             case BOM.UTF16LE, BOM.UTF16BE:
-                searchOneFileStream!wchar(inp, filename, wmatcher,
-                                          reverse, name_only, no_filename, !no_color);
+                searchOneFileStream!wchar(inp, filename, wmatcher, flags);
                 break;
             case BOM.UTF8:
             default:
-                searchOneFileStream!char(inp, filename, matcher,
-                                         reverse, name_only, no_filename, !no_color);
+                searchOneFileStream!char(inp, filename, matcher, flags);
                 break;
         }
 
