@@ -20,6 +20,13 @@ import std.getopt;
 import docopt;
 import colorize;
 
+struct ColorSet
+{
+    string lineColor;
+    string fileColor;
+    string matchColor;
+}
+
 public bool extMatch(const DirEntry de, const int[string] exts)
 {
     return exts.get(extension(de.name), 0) == 1;
@@ -46,9 +53,31 @@ void addNames(ref int[string] names, const string input, int value=1)
     }
 }
 
+public ColorSet getColors(docopt.ArgValue[string] flags)
+{
+    import std.c.stdlib;
+
+    ColorSet colorSet;
+    try
+    {
+        colorSet.lineColor = flags["--line-color"].toString;
+        string testFoo = color("foo", colorSet.lineColor);
+    }
+    catch(object.Exception e)
+    {
+        writefln("bad line color: %s", flags["--line-color"]);
+        exit(1);
+    }
+
+    colorSet.fileColor = flags["--filename-color"].toString;
+    colorSet.matchColor = format("bg_%s", flags["--match-color"].toString);
+    return colorSet;
+}
+
+
 void searchOneFileStream(T)(InputStream inp, const string filename,
                             Regex!T matcher, docopt.ArgValue[string] flags,
-                            const bg matchColor=bg.yellow)
+                            const ColorSet colorSet)
 {
     bool first = true;
     bool reverse = flags["--reverse"].isTrue;
@@ -60,7 +89,7 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
     string cfilename = filename;
     if (showColor)
     {
-        cfilename = color(cfilename, flags["--filename-color"].toString);
+        cfilename = color(cfilename, colorSet.fileColor);
     }
 
     bool found = false;
@@ -97,8 +126,8 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                 string lineNo = format("%d", lcount);
                 if (showColor)
                 {
-                    line = replaceAll(line, matcher, color("$0", fg.black, matchColor, mode.bold));
-                    lineNo = color(lineNo, flags["--line-color"].toString);
+                    line = replaceAll(line, matcher, color("$0", colorSet.matchColor).color("black"));
+                    lineNo = color(lineNo, colorSet.lineColor);
                 }
                 cwritefln("%s:%s", lineNo, line);
             }
@@ -284,12 +313,6 @@ File type options:
         writeln(typeOptions);
         return 0;
     }
-
-    // foreach(k, v; flags)
-    // {
-    //     writeln(k, v);
-    // }
-
     string[] files;
     if (flags["FILES"].asList.length == 0)
     {
@@ -310,10 +333,10 @@ File type options:
         {
             flags["--no-filename"] = new docopt.ArgValue(true);
         }
-        else if (flags["--with-filename"].isFalse)
-        {
-            flags["--no-filename"] = new docopt.ArgValue(false);
-        }
+        // else if (flags["--with-filename"].isFalse)
+        // {
+        //     flags["--no-filename"] = new docopt.ArgValue(false);
+        // }
     }
     catch(std.file.FileException e)
     {
@@ -323,6 +346,13 @@ File type options:
         }
         return -1;
     }
+
+    // foreach(k, v; flags)
+    // {
+    //     writeln(k, v);
+    // }
+
+    auto colorSet = getColors(flags);
 
     auto spanMode = SpanMode.breadth;
     if (flags["--no-recurse"].isTrue)
@@ -432,11 +462,11 @@ File type options:
         switch(bom)
         {
             case BOM.UTF16LE, BOM.UTF16BE:
-                searchOneFileStream!wchar(inp, filename, wmatcher, flags);
+                searchOneFileStream!wchar(inp, filename, wmatcher, flags, colorSet);
                 break;
             case BOM.UTF8:
             default:
-                searchOneFileStream!char(inp, filename, matcher, flags);
+                searchOneFileStream!char(inp, filename, matcher, flags, colorSet);
                 break;
         }
 
