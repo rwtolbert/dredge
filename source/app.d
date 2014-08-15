@@ -27,6 +27,19 @@ struct ColorSet
     string matchColor;
 }
 
+string allowedColors = "    black, white, red, green, blue, cyan, yellow, magenta,
+    light_red, light_green, light_blue, light_cyan, light_yellow, light_magenta";
+
+void colorExit(string color)
+{
+    import std.c.stdlib;
+
+    writefln("unexpected color: %s", color);
+    writeln("Color choices:");
+    writeln(allowedColors);
+    exit(1);
+}
+
 public bool extMatch(const DirEntry de, const int[string] exts)
 {
     return exts.get(extension(de.name), 0) == 1;
@@ -55,22 +68,27 @@ void addNames(ref int[string] names, const string input, int value=1)
 
 public ColorSet getColors(docopt.ArgValue[string] flags)
 {
-    import std.c.stdlib;
-
     ColorSet colorSet;
-    try
+    colorSet.lineColor = flags["--line-color"].toString;
+    if (find(allowedColors, colorSet.lineColor) == [])
     {
-        colorSet.lineColor = flags["--line-color"].toString;
-        string testFoo = color("foo", colorSet.lineColor);
-    }
-    catch(object.Exception e)
-    {
-        writefln("bad line color: %s", flags["--line-color"]);
-        exit(1);
+        colorExit(colorSet.lineColor);
     }
 
     colorSet.fileColor = flags["--filename-color"].toString;
-    colorSet.matchColor = format("bg_%s", flags["--match-color"].toString);
+    if (find(allowedColors, colorSet.fileColor) == [])
+    {
+        colorExit(colorSet.fileColor);
+    }
+
+    colorSet.matchColor = flags["--match-color"].toString;
+    if (find(allowedColors, colorSet.matchColor) == [])
+    {
+        colorExit(colorSet.matchColor);
+    }
+
+    colorSet.matchColor = format("bg_%s", colorSet.matchColor);
+
     return colorSet;
 }
 
@@ -139,6 +157,14 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
     }
 }
 
+void dumpFlags(docopt.ArgValue[string] flags)
+{
+    foreach(k, v; flags)
+    {
+        writefln("%s: %s", k, v);
+    }
+}
+
 template DeclareType(string ftype, string inputs, string names)
 {
     const char[] DeclareType = format("""
@@ -179,7 +205,7 @@ Usage: sift [options] PATTERN [FILES ...]
     auto doc = "
 Arguments:
     PATTERN     pattern to search for
-    FILES       files or directories to search. [default: .]
+    FILES       files or directories to search.  [default: .]
 
 Search options:
     -v --reverse                 Reverse the match.
@@ -307,6 +333,8 @@ File type options:
 
     auto flags = docopt.docopt(usage ~ doc, args[1..$], true, "0.4.1");
 
+//    dumpFlags(flags);
+
     if (flags["--help-types"].isTrue)
     {
         write(usage);
@@ -346,11 +374,6 @@ File type options:
         }
         return -1;
     }
-
-    // foreach(k, v; flags)
-    // {
-    //     writeln(k, v);
-    // }
 
     auto colorSet = getColors(flags);
 
