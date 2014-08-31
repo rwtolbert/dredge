@@ -218,6 +218,11 @@ Output options:
     -h --no-filename             No filename before match.
     -l --files-with-matches      Only print FILE names containing matches
     -L --files-without-match     Only print FILE names containing no match
+    -A NUM --after-context NUM   Print NUM lines of trailing context after
+                                 matching lines.
+    -B NUM --before-context NUM  Print NUM lines of leading context before
+                                 matching lines.
+    -C NUM --context NUM         Print NUM lines of output context.
     --no-color                   No color output
     --filename-color COLOR       Color for filename output  [default: green]
     --line-color COLOR           Color for line numbers     [default: cyan]
