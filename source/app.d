@@ -16,12 +16,15 @@ import std.utf;
 import std.stream;
 import std.cstream;
 import std.getopt;
+import std.container;
+
 
 import docopt;
 import colorize;
 
-struct ColorSet
+struct ColorOpts
 {
+    bool showColor;
     string lineColor;
     string fileColor;
     string matchColor;
@@ -66,90 +69,253 @@ void addNames(ref int[string] names, const string input, int value=1)
     }
 }
 
-public ColorSet getColors(docopt.ArgValue[string] flags)
+public ColorOpts getColors(docopt.ArgValue[string] flags)
 {
-    ColorSet colorSet;
-    colorSet.lineColor = flags["--line-color"].toString;
-    if (find(allowedColors, colorSet.lineColor) == [])
+    ColorOpts colorOpts;
+
+    colorOpts.showColor = flags["--no-color"].isFalse;
+
+    colorOpts.lineColor = flags["--line-color"].toString;
+    if (find(allowedColors, colorOpts.lineColor) == [])
     {
-        colorExit(colorSet.lineColor);
+        colorExit(colorOpts.lineColor);
     }
 
-    colorSet.fileColor = flags["--filename-color"].toString;
-    if (find(allowedColors, colorSet.fileColor) == [])
+    colorOpts.fileColor = flags["--filename-color"].toString;
+    if (find(allowedColors, colorOpts.fileColor) == [])
     {
-        colorExit(colorSet.fileColor);
+        colorExit(colorOpts.fileColor);
     }
 
-    colorSet.matchColor = flags["--match-color"].toString;
-    if (find(allowedColors, colorSet.matchColor) == [])
+    colorOpts.matchColor = flags["--match-color"].toString;
+    if (find(allowedColors, colorOpts.matchColor) == [])
     {
-        colorExit(colorSet.matchColor);
+        colorExit(colorOpts.matchColor);
     }
 
-    colorSet.matchColor = format("bg_%s", colorSet.matchColor);
+    colorOpts.matchColor = format("bg_%s", colorOpts.matchColor);
 
-    return colorSet;
+    return colorOpts;
 }
 
+void getContext(docopt.ArgValue[string] flags,
+                ref int before_context,
+                ref int after_context)
+{
+    import std.conv;
+
+    if (!flags["--context"].isNull)
+    {
+        auto val = flags["--context"].toString;
+        before_context = after_context = parse!int(val);
+    }
+    else
+    {
+        if (!flags["--before-context"].isNull)
+        {
+            auto val = flags["--before-context"].toString;
+            before_context = parse!int(val);
+        }
+        if (!flags["--after-context"].isNull)
+        {
+            auto val = flags["--after-context"].toString;
+            after_context = parse!int(val);
+        }
+    }
+}
+
+char[] getOneLine(T : char)(InputStream inp)
+{
+    return inp.readLine();
+}
+
+wchar[] getOneLine(T : wchar)(InputStream inp)
+{
+    return inp.readLineW();
+}
+
+void writeUnmatchedLine(T)(ulong lcount, T[] line, const ColorOpts colorOpts)
+{
+    string lineNo = format("%d", lcount);
+    if (colorOpts.showColor)
+    {
+        lineNo = color(lineNo, colorOpts.lineColor);
+    }
+    cwritefln("%s-%s", lineNo, line);
+}
+
+void writeMatchedLine(T)(ulong lcount, T[] line, Regex!T matcher,
+                         const ColorOpts colorOpts)
+{
+    string lineNo = format("%d", lcount);
+    if (colorOpts.showColor)
+    {
+        line = replaceAll(line, matcher, color("$0", colorOpts.matchColor).color("black"));
+        lineNo = color(lineNo, colorOpts.lineColor);
+    }
+    cwritefln("%s:%s", lineNo, line);
+}
 
 void searchOneFileStream(T)(InputStream inp, const string filename,
                             Regex!T matcher, docopt.ArgValue[string] flags,
-                            const ColorSet colorSet)
+                            const ColorOpts colorOpts, int beforeContext, int afterContext)
 {
     bool first = true;
     bool reverse = flags["--reverse"].isTrue;
     bool files_with_matches = flags["--files-with-matches"].isTrue;
     bool files_without_match = flags["--files-without-match"].isTrue;
     bool no_filename = flags["--no-filename"].isTrue;
-    bool showColor = flags["--no-color"].isFalse;
+
+    bool showContext = (beforeContext>0 || afterContext>0);
+
+    if (files_with_matches || files_without_match)
+    {
+        showContext = false;
+    }
 
     string cfilename = filename;
-    if (showColor)
+    if (colorOpts.showColor)
     {
-        cfilename = color(cfilename, colorSet.fileColor);
+        cfilename = color(cfilename, colorOpts.fileColor);
     }
 
     bool found = false;
-    foreach(ulong lcount, T[] line; inp)
+
+    if (showContext)
     {
-        auto captures = matchAll(line, matcher);
-        bool printMatch = !captures.empty() && !reverse;
-        bool printNoMatch = captures.empty() && reverse;
-        if (printMatch || printNoMatch)
+        auto beforeArray = Array!(T[])();
+        auto afterArray = Array!(T[])();
+        T[] this_line = getOneLine!T(inp);
+        int lcount = 0;
+        auto last_line_printed = 0;
+
+        while(afterArray.length>0 || !inp.eof())
         {
-            found = true;
-            if (files_without_match)
+            lcount++;
+
+            while(afterArray.length < afterContext && !inp.eof())
             {
-                break;
+                afterArray.insertBack(getOneLine!T(inp));
             }
-            if (first)
+
+            auto captures = matchAll(this_line, matcher);
+            bool printMatch = !captures.empty() && !reverse;
+            bool printNoMatch = captures.empty() && reverse;
+            if (printMatch || printNoMatch)
             {
-                if (files_with_matches)
-                {
-                    writeln(filename);
-                    break;
-                }
-                else
+                found = true;
+                if (first)
                 {
                     if (!no_filename)
                     {
-                        cwritefln("\n%s", cfilename);
+                        cwritefln("%s", cfilename);
+                    }
+                    first = false;
+                }
+
+                auto counter = lcount - beforeArray.length();
+                if (last_line_printed > 0 && counter > last_line_printed + 1)
+                {
+                    writeln("--");
+                }
+
+                foreach(bline; beforeArray)
+                {
+                    if (counter > last_line_printed)
+                    {
+                        writeUnmatchedLine!T(counter, bline, colorOpts);
+                        last_line_printed = counter;
+                    }
+                    counter++;
+                }
+
+                if (lcount > last_line_printed)
+                {
+                    writeMatchedLine!T(lcount, this_line, matcher, colorOpts);
+                    last_line_printed = lcount;
+                }
+
+                foreach(aline; afterArray)
+                {
+                    counter++;
+                    if (counter > last_line_printed)
+                    {
+                        if (!matchFirst(aline, matcher).empty())
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            writeUnmatchedLine!T(counter, aline, colorOpts);
+                            last_line_printed = counter;
+                        }
                     }
                 }
-                first = false;
             }
-            if (!files_with_matches && !files_without_match)
+
+            if (beforeContext > 0)
             {
-                string lineNo = format("%d", lcount);
-                if (showColor)
+                beforeArray.insertBack(this_line);
+                while (beforeArray.length > beforeContext)
                 {
-                    line = replaceAll(line, matcher, color("$0", colorSet.matchColor).color("black"));
-                    lineNo = color(lineNo, colorSet.lineColor);
+                    beforeArray = Array!(T[])(beforeArray[1..$]);
                 }
-                cwritefln("%s:%s", lineNo, line);
+            }
+
+            if (afterContext > 0)
+            {
+                if (afterArray.length > 0)
+                {
+                    this_line = afterArray.front;
+                    afterArray = Array!(T[])(afterArray[1..$]);
+                }
+            }
+            else
+            {
+                this_line = getOneLine!T(inp);
             }
         }
+    }
+    else
+    {
+        foreach(ulong lcount, T[] line; inp)
+        {
+            auto captures = matchAll(line, matcher);
+            bool printMatch = !captures.empty() && !reverse;
+            bool printNoMatch = captures.empty() && reverse;
+            if (printMatch || printNoMatch)
+            {
+                found = true;
+                if (files_without_match)
+                {
+                    break;
+                }
+                if (first)
+                {
+                    if (files_with_matches)
+                    {
+                        writeln(filename);
+                        break;
+                    }
+                    else
+                    {
+                        if (!no_filename)
+                        {
+                            cwritefln("%s", cfilename);
+                        }
+                    }
+                    first = false;
+                }
+                if (!files_with_matches && !files_without_match)
+                {
+                    writeMatchedLine!T(lcount, line, matcher, colorOpts);
+                }
+            }
+        }
+    }
+    if (found && !files_with_matches && !files_without_match)
+    {
+        writeln();
     }
     if (!found && files_without_match)
     {
@@ -380,7 +546,11 @@ File type options:
         return -1;
     }
 
-    auto colorSet = getColors(flags);
+    auto colorOpts = getColors(flags);
+
+    int before_context = 0;
+    int after_context = 0;
+    getContext(flags, before_context, after_context);
 
     auto spanMode = SpanMode.breadth;
     if (flags["--no-recurse"].isTrue)
@@ -490,11 +660,13 @@ File type options:
         switch(bom)
         {
             case BOM.UTF16LE, BOM.UTF16BE:
-                searchOneFileStream!wchar(inp, filename, wmatcher, flags, colorSet);
+                searchOneFileStream!wchar(inp, filename, wmatcher, flags, colorOpts, 
+                                          before_context, after_context);
                 break;
             case BOM.UTF8:
             default:
-                searchOneFileStream!char(inp, filename, matcher, flags, colorSet);
+                searchOneFileStream!char(inp, filename, matcher, flags, colorOpts, 
+                                         before_context, after_context);
                 break;
         }
 
@@ -507,3 +679,4 @@ File type options:
 
     return 0;
 }
+// last line
