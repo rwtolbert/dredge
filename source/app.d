@@ -187,7 +187,7 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
         auto afterArray = Array!(T[])();
         T[] this_line = getOneLine!T(inp);
         int lcount = 0;
-        auto last_line_printed = 0;
+        ulong last_line_printed = 0;
 
         while(afterArray.length>0 || !inp.eof())
         {
@@ -242,7 +242,8 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                     {
                         if (!matchFirst(aline, matcher).empty())
                         {
-                            continue;
+                            writeMatchedLine!T(counter, aline, matcher, colorOpts);
+                            last_line_printed = counter;
                         }
                         else
                         {
