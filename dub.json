@@ -6,5 +6,8 @@
 	"dependencies": {
         "docopt": ">=0.6.1-b.1",
         "colorize" : ">=1.0.5"
-	}
+	},
+    "subPackages": [
+        "tests"
+    ]
 }
