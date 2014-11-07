@@ -134,26 +134,40 @@ wchar[] getOneLine(T : wchar)(InputStream inp)
     return inp.readLineW();
 }
 
-void writeUnmatchedLine(T)(ulong lcount, T[] line, const ColorOpts colorOpts)
+void writeUnmatchedLine(T)(ulong lcount, T[] line, bool writeLineNo, const ColorOpts colorOpts)
 {
-    string lineNo = format("%d", lcount);
-    if (colorOpts.showColor)
+    if (writeLineNo)
     {
-        lineNo = color(lineNo, colorOpts.lineColor);
+        string lineNo = format("%d", lcount);
+        if (colorOpts.showColor)
+        {
+            lineNo = color(lineNo, colorOpts.lineColor);
+        }
+        cwritefln("%s-%s", lineNo, line);
     }
-    cwritefln("%s-%s", lineNo, line);
+    else
+    {
+        cwritefln("%s", line);
+    }
 }
 
-void writeMatchedLine(T)(ulong lcount, T[] line, Regex!T matcher,
+void writeMatchedLine(T)(ulong lcount, T[] line, Regex!T matcher, bool writeLineNo,
                          const ColorOpts colorOpts)
 {
-    string lineNo = format("%d", lcount);
-    if (colorOpts.showColor)
+    if (writeLineNo)
     {
-        line = replaceAll(line, matcher, color("$0", colorOpts.matchColor).color("black"));
-        lineNo = color(lineNo, colorOpts.lineColor);
+        string lineNo = format("%d", lcount);
+        if (colorOpts.showColor)
+        {
+            line = replaceAll(line, matcher, color("$0", colorOpts.matchColor).color("black"));
+            lineNo = color(lineNo, colorOpts.lineColor);
+        }
+        cwritefln("%s:%s", lineNo, line);
     }
-    cwritefln("%s:%s", lineNo, line);
+    else
+    {
+        cwritefln("%s", line);
+    }
 }
 
 void searchOneFileStream(T)(InputStream inp, const string filename,
@@ -223,7 +237,7 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                 {
                     if (counter > last_line_printed)
                     {
-                        writeUnmatchedLine!T(counter, bline, colorOpts);
+                        writeUnmatchedLine!T(counter, bline, !no_filename, colorOpts);
                         last_line_printed = counter;
                     }
                     counter++;
@@ -231,7 +245,7 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
 
                 if (lcount > last_line_printed)
                 {
-                    writeMatchedLine!T(lcount, this_line, matcher, colorOpts);
+                    writeMatchedLine!T(lcount, this_line, matcher, !no_filename, colorOpts);
                     last_line_printed = lcount;
                 }
 
@@ -242,12 +256,12 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                     {
                         if (!matchFirst(aline, matcher).empty())
                         {
-                            writeMatchedLine!T(counter, aline, matcher, colorOpts);
+                            writeMatchedLine!T(counter, aline, matcher, !no_filename, colorOpts);
                             last_line_printed = counter;
                         }
                         else
                         {
-                            writeUnmatchedLine!T(counter, aline, colorOpts);
+                            writeUnmatchedLine!T(counter, aline, !no_filename, colorOpts);
                             last_line_printed = counter;
                         }
                     }
@@ -309,7 +323,7 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                 }
                 if (!files_with_matches && !files_without_match)
                 {
-                    writeMatchedLine!T(lcount, line, matcher, colorOpts);
+                    writeMatchedLine!T(lcount, line, matcher, !no_filename, colorOpts);
                 }
             }
         }
