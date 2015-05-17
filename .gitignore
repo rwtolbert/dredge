@@ -1,4 +1,8 @@
 sift
 sift.exe
+sift_d.exe
+*.exe_cv
+*.pdb
+*.suo
 .dub
 dub.selections.json
