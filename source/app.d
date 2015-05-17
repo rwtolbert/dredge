@@ -1,6 +1,6 @@
 //  grep-like tool written in D.
 //
-//  Copyright (c) 2014 Bob Tolbert, bob@tolbert.org
+//  Copyright (c) 2014, 2015 Bob Tolbert, bob@tolbert.org
 //  Licensed under terms of MIT license (see LICENSE-MIT)
 //
 //  https://github.com/rwtolbert/sift
@@ -364,7 +364,7 @@ int main(string[] args)
     auto usage = "
 Usage: sift [options] PATTERN [FILES ...]
        sift -f [options] [FILES ...]
-       sift --help
+       sift (-?|--help)
        sift --help-types
        sift --version
     ";
@@ -394,10 +394,10 @@ Output options:
     --filename-color COLOR       Color for filename output  [default: green]
     --line-color COLOR           Color for line numbers     [default: cyan]
     --match-color COLOR          Color for match highlight  [default: yellow]
-    -s                           Suppress failure on missing or unreadable file.
+    -s --silent                  Suppress failure on missing or unreadable file.
 
 Base options:
-    --help
+    -? --help
     --help-types                 Show help on file type flags.
     --version                    Show version and exit.
 
@@ -470,7 +470,7 @@ File type options:
     mixin(DeclareType!("make", ".mk .make", "makefile Makefile GNUmakefile"));
     mixin(DeclareType!("matlab", ".m", ""));
     mixin(DeclareType!("md", ".md .mkd", ""));
-    mixin(DeclareType!("nimrod", ".nim", ""));
+    mixin(DeclareType!("nim", ".nim", ""));
     mixin(DeclareType!("objc", ".m .h", ""));
     mixin(DeclareType!("objcpp", ".mm .h", ""));
     mixin(DeclareType!("ocaml", ".ml .mli", ""));
