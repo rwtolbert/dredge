@@ -516,7 +516,14 @@ File type options:
     string[] files;
     if (flags["FILES"].asList.length == 0)
     {
-        files = ["."];
+		if (!std.stdio.stdin.eof())  // stdin has data from pipe so lets use that
+		{
+			files = ["-"];
+		}
+		else
+		{
+			files = ["."];  // no directory given means use current
+		}
     }
     else
     {
@@ -611,8 +618,6 @@ File type options:
             }
         }
     }
-
-    //writeln(fileList);
 
     if (flags["--sort-files"].isTrue)
     {
