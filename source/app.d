@@ -48,10 +48,37 @@ public bool hasStdinData()
     version(Windows)
     {
         import core.sys.windows.windows;
-        if(WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), 1) == 0) {
+        DWORD events = 0;           // how many events took place
+        INPUT_RECORD input_record;  // a record of input events
+        DWORD input_size = 1;       // how many characters to read
+
+        if (PeekConsoleInputA(GetStdHandle(STD_INPUT_HANDLE),
+                                &input_record,
+                                input_size,
+                                &events) == 0)
+        {
             return true;
         }
+    }
+    version(Posix)
+    {
+        import core.sys.posix.sys.select;
+        import core.sys.posix.sys.time;
 
+        fd_set read,write,except;
+        FD_ZERO(&read);
+        FD_ZERO(&write);
+        FD_ZERO(&except);
+        FD_SET(0,&read); // stdin
+
+        timeval timeout;
+        timeout.tv_sec=0;
+        timeout.tv_usec=0;
+
+        if (select(1,&read,&write,&except,&timeout) != 0)
+        {
+            return true;
+        }
     }
     return false;
 }
@@ -529,14 +556,14 @@ File type options:
     string[] files;
     if (flags["FILES"].asList.length == 0)
     {
-		if (hasStdinData())  // stdin has data from pipe so lets use that
-		{
-			files = ["-"];
-		}
-		else
-		{
-			files = ["."];  // no directory given means use current
-		}
+        if (hasStdinData())  // stdin has data from pipe so lets use that
+        {
+            files = ["-"];
+        }
+        else
+        {
+            files = ["."];  // no directory given means use current
+        }
     }
     else
     {
