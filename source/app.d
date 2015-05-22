@@ -43,6 +43,19 @@ void colorExit(string color)
     exit(1);
 }
 
+public bool hasStdinData()
+{
+    version(Windows)
+    {
+        import core.sys.windows.windows;
+        if(WaitForSingleObject(GetStdHandle(STD_INPUT_HANDLE), 1) == 0) {
+            return true;
+        }
+
+    }
+    return false;
+}
+
 public bool extMatch(const DirEntry de, const int[string] exts)
 {
     return exts.get(extension(de.name), 0) == 1;
@@ -503,7 +516,7 @@ File type options:
     mixin(DeclareType!("xml", ".xml .dtd .xsl .xslt .ent", ""));
     mixin(DeclareType!("yaml", ".yaml .yml", ""));
 
-    auto flags = docopt.docopt(usage ~ doc, args[1..$], true, "0.4.1");
+    auto flags = docopt.docopt(usage ~ doc, args[1..$], true, "0.4.2");
 
 //    dumpFlags(flags);
 
@@ -516,7 +529,7 @@ File type options:
     string[] files;
     if (flags["FILES"].asList.length == 0)
     {
-		if (!std.stdio.stdin.eof())  // stdin has data from pipe so lets use that
+		if (hasStdinData())  // stdin has data from pipe so lets use that
 		{
 			files = ["-"];
 		}
