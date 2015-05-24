@@ -18,70 +18,11 @@ import std.cstream;
 import std.getopt;
 import std.container;
 
-
 import docopt;
 import colorize;
 
-struct ColorOpts
-{
-    bool showColor;
-    string lineColor;
-    string fileColor;
-    string matchColor;
-}
-
-string allowedColors = "    black, white, red, green, blue, cyan, yellow, magenta,
-    light_red, light_green, light_blue, light_cyan, light_yellow, light_magenta";
-
-void colorExit(string color)
-{
-    import std.c.stdlib;
-
-    writefln("unexpected color: %s", color);
-    writeln("Color choices:");
-    writeln(allowedColors);
-    exit(1);
-}
-
-public bool hasStdinData()
-{
-    version(Windows)
-    {
-        import core.sys.windows.windows;
-        DWORD events = 0;           // how many events took place
-        INPUT_RECORD input_record;  // a record of input events
-        DWORD input_size = 1;       // how many characters to read
-
-        if (PeekConsoleInputA(GetStdHandle(STD_INPUT_HANDLE),
-                                &input_record,
-                                input_size,
-                                &events) == 0)
-        {
-            return true;
-        }
-    }
-    version(Posix)
-    {
-        import core.sys.posix.sys.select;
-        import core.sys.posix.sys.time;
-
-        fd_set read,write,except;
-        FD_ZERO(&read);
-        FD_ZERO(&write);
-        FD_ZERO(&except);
-        FD_SET(0,&read); // stdin
-
-        timeval timeout;
-        timeout.tv_sec=0;
-        timeout.tv_usec=0;
-
-        if (select(1,&read,&write,&except,&timeout) != 0)
-        {
-            return true;
-        }
-    }
-    return false;
-}
+import utils;
+import colors;
 
 public bool extMatch(const DirEntry de, const int[string] exts)
 {
@@ -107,35 +48,6 @@ void addNames(ref int[string] names, const string input, int value=1)
     {
         names[n] = value;
     }
-}
-
-public ColorOpts getColors(docopt.ArgValue[string] flags)
-{
-    ColorOpts colorOpts;
-
-    colorOpts.showColor = flags["--no-color"].isFalse;
-
-    colorOpts.lineColor = flags["--line-color"].toString;
-    if (find(allowedColors, colorOpts.lineColor) == [])
-    {
-        colorExit(colorOpts.lineColor);
-    }
-
-    colorOpts.fileColor = flags["--filename-color"].toString;
-    if (find(allowedColors, colorOpts.fileColor) == [])
-    {
-        colorExit(colorOpts.fileColor);
-    }
-
-    colorOpts.matchColor = flags["--match-color"].toString;
-    if (find(allowedColors, colorOpts.matchColor) == [])
-    {
-        colorExit(colorOpts.matchColor);
-    }
-
-    colorOpts.matchColor = format("bg_%s", colorOpts.matchColor);
-
-    return colorOpts;
 }
 
 void getContext(docopt.ArgValue[string] flags,
@@ -361,14 +273,6 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
     if (!found && files_without_match)
     {
         writeln(filename);
-    }
-}
-
-void dumpFlags(docopt.ArgValue[string] flags)
-{
-    foreach(k, v; flags)
-    {
-        writefln("%s: %s", k, v);
     }
 }
 
@@ -706,12 +610,12 @@ File type options:
         switch(bom)
         {
             case BOM.UTF16LE, BOM.UTF16BE:
-                searchOneFileStream!wchar(inp, filename, wmatcher, flags, colorOpts, 
+                searchOneFileStream!wchar(inp, filename, wmatcher, flags, colorOpts,
                                           before_context, after_context);
                 break;
             case BOM.UTF8:
             default:
-                searchOneFileStream!char(inp, filename, matcher, flags, colorOpts, 
+                searchOneFileStream!char(inp, filename, matcher, flags, colorOpts,
                                          before_context, after_context);
                 break;
         }
