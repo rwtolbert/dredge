@@ -106,12 +106,16 @@ void writeUnmatchedLine(T)(ulong lcount, T[] line, bool writeLineNo, const Color
 void writeMatchedLine(T)(ulong lcount, T[] line, Regex!T matcher, bool writeLineNo,
                          const ColorOpts colorOpts)
 {
+    if (colorOpts.showColor)
+    {
+        line = replaceAll(line, matcher, color("$0", colorOpts.matchColor).color("black"));
+    }
+
     if (writeLineNo)
     {
         string lineNo = format("%d", lcount);
         if (colorOpts.showColor)
         {
-            line = replaceAll(line, matcher, color("$0", colorOpts.matchColor).color("black"));
             lineNo = color(lineNo, colorOpts.lineColor);
         }
         cwritefln("%s:%s", lineNo, line);
