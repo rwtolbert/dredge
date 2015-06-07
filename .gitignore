@@ -1,4 +1,9 @@
 sift
-sift.exe
+*.exe
+*.exe_cv
+*.pdb
 .dub
 dub.selections.json
+*.visualdproj
+*.sln
+*.suo

@@ -1,12 +1,12 @@
 {
-	"name": "sift",
-	"description": "A 'grep' like tool, written in D.",
-	"copyright": "Copyright (C) 2014, Bob Tolbert",
-	"authors": ["Bob Tolbert"],
-	"dependencies": {
-        "docopt": ">=0.6.1-b.1",
-        "colorize" : ">=1.0.5"
-	},
+    "name": "sift",
+    "description": "A 'grep' like tool, written in D.",
+    "copyright": "Copyright (C) 2014-2015, Bob Tolbert",
+    "authors": ["Bob Tolbert"],
+    "dependencies": {
+        "docopt": ">=0.6.1-b.3",
+        "colorize": ">=1.0.5"
+    },
     "subPackages": [
         "tests"
     ]

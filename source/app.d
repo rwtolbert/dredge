@@ -1,6 +1,6 @@
 //  grep-like tool written in D.
 //
-//  Copyright (c) 2014 Bob Tolbert, bob@tolbert.org
+//  Copyright (c) 2014, 2015 Bob Tolbert, bob@tolbert.org
 //  Licensed under terms of MIT license (see LICENSE-MIT)
 //
 //  https://github.com/rwtolbert/sift
@@ -18,30 +18,11 @@ import std.cstream;
 import std.getopt;
 import std.container;
 
-
 import docopt;
 import colorize;
 
-struct ColorOpts
-{
-    bool showColor;
-    string lineColor;
-    string fileColor;
-    string matchColor;
-}
-
-string allowedColors = "    black, white, red, green, blue, cyan, yellow, magenta,
-    light_red, light_green, light_blue, light_cyan, light_yellow, light_magenta";
-
-void colorExit(string color)
-{
-    import std.c.stdlib;
-
-    writefln("unexpected color: %s", color);
-    writeln("Color choices:");
-    writeln(allowedColors);
-    exit(1);
-}
+import utils;
+import colors;
 
 public bool extMatch(const DirEntry de, const int[string] exts)
 {
@@ -67,35 +48,6 @@ void addNames(ref int[string] names, const string input, int value=1)
     {
         names[n] = value;
     }
-}
-
-public ColorOpts getColors(docopt.ArgValue[string] flags)
-{
-    ColorOpts colorOpts;
-
-    colorOpts.showColor = flags["--no-color"].isFalse;
-
-    colorOpts.lineColor = flags["--line-color"].toString;
-    if (find(allowedColors, colorOpts.lineColor) == [])
-    {
-        colorExit(colorOpts.lineColor);
-    }
-
-    colorOpts.fileColor = flags["--filename-color"].toString;
-    if (find(allowedColors, colorOpts.fileColor) == [])
-    {
-        colorExit(colorOpts.fileColor);
-    }
-
-    colorOpts.matchColor = flags["--match-color"].toString;
-    if (find(allowedColors, colorOpts.matchColor) == [])
-    {
-        colorExit(colorOpts.matchColor);
-    }
-
-    colorOpts.matchColor = format("bg_%s", colorOpts.matchColor);
-
-    return colorOpts;
 }
 
 void getContext(docopt.ArgValue[string] flags,
@@ -338,14 +290,6 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
     }
 }
 
-void dumpFlags(docopt.ArgValue[string] flags)
-{
-    foreach(k, v; flags)
-    {
-        writefln("%s: %s", k, v);
-    }
-}
-
 template DeclareType(string ftype, string inputs, string names)
 {
     const char[] DeclareType = format("""
@@ -378,7 +322,7 @@ int main(string[] args)
     auto usage = "
 Usage: sift [options] PATTERN [FILES ...]
        sift -f [options] [FILES ...]
-       sift --help
+       sift (-?|--help)
        sift --help-types
        sift --version
     ";
@@ -408,10 +352,10 @@ Output options:
     --filename-color COLOR       Color for filename output  [default: green]
     --line-color COLOR           Color for line numbers     [default: cyan]
     --match-color COLOR          Color for match highlight  [default: yellow]
-    -s                           Suppress failure on missing or unreadable file.
+    -s --silent                  Suppress failure on missing or unreadable file.
 
 Base options:
-    --help
+    -? --help
     --help-types                 Show help on file type flags.
     --version                    Show version and exit.
 
@@ -484,7 +428,7 @@ File type options:
     mixin(DeclareType!("make", ".mk .make", "makefile Makefile GNUmakefile"));
     mixin(DeclareType!("matlab", ".m", ""));
     mixin(DeclareType!("md", ".md .mkd", ""));
-    mixin(DeclareType!("nimrod", ".nim", ""));
+    mixin(DeclareType!("nim", ".nim", ""));
     mixin(DeclareType!("objc", ".m .h", ""));
     mixin(DeclareType!("objcpp", ".mm .h", ""));
     mixin(DeclareType!("ocaml", ".ml .mli", ""));
@@ -517,7 +461,7 @@ File type options:
     mixin(DeclareType!("xml", ".xml .dtd .xsl .xslt .ent", ""));
     mixin(DeclareType!("yaml", ".yaml .yml", ""));
 
-    auto flags = docopt.docopt(usage ~ doc, args[1..$], true, "0.4.1");
+    auto flags = docopt.docopt(usage ~ doc, args[1..$], true, "0.4.2");
 
 //    dumpFlags(flags);
 
@@ -530,7 +474,14 @@ File type options:
     string[] files;
     if (flags["FILES"].asList.length == 0)
     {
-        files = ["."];
+        if (hasStdinData())  // stdin has data from pipe so lets use that
+        {
+            files = ["-"];
+        }
+        else
+        {
+            files = ["."];  // no directory given means use current
+        }
     }
     else
     {
@@ -626,8 +577,6 @@ File type options:
         }
     }
 
-    //writeln(fileList);
-
     if (flags["--sort-files"].isTrue)
     {
         std.algorithm.sort(fileList);
@@ -675,12 +624,12 @@ File type options:
         switch(bom)
         {
             case BOM.UTF16LE, BOM.UTF16BE:
-                searchOneFileStream!wchar(inp, filename, wmatcher, flags, colorOpts, 
+                searchOneFileStream!wchar(inp, filename, wmatcher, flags, colorOpts,
                                           before_context, after_context);
                 break;
             case BOM.UTF8:
             default:
-                searchOneFileStream!char(inp, filename, matcher, flags, colorOpts, 
+                searchOneFileStream!char(inp, filename, matcher, flags, colorOpts,
                                          before_context, after_context);
                 break;
         }
