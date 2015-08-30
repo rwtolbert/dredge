@@ -9,6 +9,34 @@ import std.stdio;
 
 import docopt;
 
+
+public bool isStdin()
+{
+    version(Posix)
+    {
+        import core.sys.posix.unistd;
+        return (isatty(0) != 0);
+    }
+}
+
+public bool isStdout()
+{
+    version(Posix)
+    {
+        import core.sys.posix.unistd;
+        return (isatty(1) != 0);
+    }
+}
+
+public bool isStderr()
+{
+    version(Posix)
+    {
+        import core.sys.posix.unistd;
+        return (isatty(2) != 0);
+    }
+}
+
 public bool hasStdinData()
 {
     version(Windows)

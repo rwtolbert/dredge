@@ -86,16 +86,24 @@ wchar[] getOneLine(T : wchar)(InputStream inp)
     return inp.readLineW();
 }
 
-void writeUnmatchedLine(T)(ulong lcount, T[] line, bool writeLineNo, const ColorOpts colorOpts)
+void writeUnmatchedLine(T)(ulong lcount, T[] line, string filename,
+                           bool writeLineNo, const ColorOpts colorOpts)
 {
     if (writeLineNo)
     {
         string lineNo = format("%d", lcount);
         if (colorOpts.showColor)
         {
-            lineNo = color(lineNo, colorOpts.lineColor);
+            lineNo = lineNo.color(colorOpts.lineColor);
         }
-        cwritefln("%s-%s", lineNo, line);
+        if (isStdout())
+        {
+            cwritefln("%s-%s", lineNo, line);
+        }
+        else
+        {
+            cwritefln("%s-%s-%s", filename, lineNo, line);
+        }
     }
     else
     {
@@ -103,12 +111,13 @@ void writeUnmatchedLine(T)(ulong lcount, T[] line, bool writeLineNo, const Color
     }
 }
 
-void writeMatchedLine(T)(ulong lcount, T[] line, Regex!T matcher, bool writeLineNo,
+void writeMatchedLine(T)(ulong lcount, T[] line, Regex!T matcher, string filename,
+                         bool writeLineNo,
                          const ColorOpts colorOpts)
 {
     if (colorOpts.showColor)
     {
-        line = replaceAll(line, matcher, color("$0", colorOpts.matchColor).color("black"));
+        line = replaceAll(line, matcher, "$0".color(colorOpts.matchColor).color(fgCode("black")));
     }
 
     if (writeLineNo)
@@ -118,7 +127,14 @@ void writeMatchedLine(T)(ulong lcount, T[] line, Regex!T matcher, bool writeLine
         {
             lineNo = color(lineNo, colorOpts.lineColor);
         }
-        cwritefln("%s:%s", lineNo, line);
+        if (isStdout())
+        {
+            cwritefln("%s:%s", lineNo, line);
+        }
+        else
+        {
+            cwritefln("%s:%s:%s", filename, lineNo, line);
+        }
     }
     else
     {
@@ -126,16 +142,16 @@ void writeMatchedLine(T)(ulong lcount, T[] line, Regex!T matcher, bool writeLine
     }
 }
 
-void searchOneFileStream(T)(InputStream inp, const string filename,
+bool searchOneFileStream(T)(InputStream inp, const string filename,
                             Regex!T matcher, docopt.ArgValue[string] flags,
-                            const ColorOpts colorOpts, int beforeContext, int afterContext)
+                            const ColorOpts colorOpts, int beforeContext, int afterContext,
+                            bool showPrefix)
 {
     bool first = true;
     bool reverse = flags["--reverse"].isTrue;
     bool files_with_matches = flags["--files-with-matches"].isTrue;
     bool files_without_match = flags["--files-without-match"].isTrue;
     bool no_filename = flags["--no-filename"].isTrue;
-
     bool showContext = (beforeContext>0 || afterContext>0);
 
     if (files_with_matches || files_without_match)
@@ -146,7 +162,7 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
     string cfilename = filename;
     if (colorOpts.showColor)
     {
-        cfilename = color(cfilename, colorOpts.fileColor);
+        cfilename = filename.color(colorOpts.fileColor);
     }
 
     bool found = false;
@@ -176,7 +192,11 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                 found = true;
                 if (first)
                 {
-                    if (!no_filename)
+                    if (showPrefix)
+                    {
+                        writeln("--");
+                    }
+                    if (!no_filename && isStdout())
                     {
                         cwritefln("%s", cfilename);
                     }
@@ -193,7 +213,7 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                 {
                     if (counter > last_line_printed)
                     {
-                        writeUnmatchedLine!T(counter, bline, !no_filename, colorOpts);
+                        writeUnmatchedLine!T(counter, bline, filename, !no_filename, colorOpts);
                         last_line_printed = counter;
                     }
                     counter++;
@@ -201,7 +221,7 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
 
                 if (lcount > last_line_printed)
                 {
-                    writeMatchedLine!T(lcount, this_line, matcher, !no_filename, colorOpts);
+                    writeMatchedLine!T(lcount, this_line, matcher, filename, !no_filename, colorOpts);
                     last_line_printed = lcount;
                 }
 
@@ -212,12 +232,12 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                     {
                         if (!matchFirst(aline, matcher).empty())
                         {
-                            writeMatchedLine!T(counter, aline, matcher, !no_filename, colorOpts);
+                            writeMatchedLine!T(counter, aline, matcher, filename, !no_filename, colorOpts);
                             last_line_printed = counter;
                         }
                         else
                         {
-                            writeUnmatchedLine!T(counter, aline, !no_filename, colorOpts);
+                            writeUnmatchedLine!T(counter, aline, filename, !no_filename, colorOpts);
                             last_line_printed = counter;
                         }
                     }
@@ -263,6 +283,10 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                 }
                 if (first)
                 {
+                    if (showPrefix && !no_filename && isStdout())
+                    {
+                        writeln();
+                    }
                     if (files_with_matches)
                     {
                         writeln(filename);
@@ -279,19 +303,16 @@ void searchOneFileStream(T)(InputStream inp, const string filename,
                 }
                 if (!files_with_matches && !files_without_match)
                 {
-                    writeMatchedLine!T(lcount, line, matcher, !no_filename, colorOpts);
+                    writeMatchedLine!T(lcount, line, matcher, filename, !no_filename, colorOpts);
                 }
             }
         }
-    }
-    if (found && !files_with_matches && !files_without_match)
-    {
-        writeln();
     }
     if (!found && files_without_match)
     {
         writeln(filename);
     }
+    return found;
 }
 
 template DeclareType(string ftype, string inputs, string names)
@@ -326,7 +347,7 @@ int main(string[] args)
     auto usage = "
 Usage: sift [options] PATTERN [FILES ...]
        sift -f [options] [FILES ...]
-       sift (-?|--help)
+       sift --help
        sift --help-types
        sift --version
     ";
@@ -359,7 +380,7 @@ Output options:
     -s --silent                  Suppress failure on missing or unreadable file.
 
 Base options:
-    -? --help
+    --help
     --help-types                 Show help on file type flags.
     --version                    Show version and exit.
 
@@ -372,6 +393,20 @@ File inclusion options:
     --follow                     Follow symlinks.  Default is off.
 
     ";
+
+    auto docstring = usage ~ doc;
+
+    if (args.find("--help") != [])
+    {
+        writeln(docstring);
+        return 0;
+    }
+
+    bool no_filename = false;
+    if (args.find("-h") != [])
+    {
+        no_filename = true;
+    }
 
     auto typeOptions = "
 File type options:
@@ -465,7 +500,7 @@ File type options:
     mixin(DeclareType!("xml", ".xml .dtd .xsl .xslt .ent", ""));
     mixin(DeclareType!("yaml", ".yaml .yml", ""));
 
-    auto flags = docopt.docopt(usage ~ doc, args[1..$], true, "0.4.2");
+    auto flags = docopt.docopt(docstring, args[1..$], true, "0.4.3");
 
 //    dumpFlags(flags);
 
@@ -476,9 +511,10 @@ File type options:
         return 0;
     }
     string[] files;
+
     if (flags["FILES"].asList.length == 0)
     {
-        if (hasStdinData())  // stdin has data from pipe so lets use that
+        if (!isStdin())  // stdin has data from pipe so lets use that
         {
             files = ["-"];
         }
@@ -492,6 +528,13 @@ File type options:
         files = flags["FILES"].asList;
     }
 
+    std.stdio.stdout.flush();
+
+    if (no_filename)
+    {
+        flags["--no-filename"] = new docopt.ArgValue(true);
+    }
+
     try
     {
         if (files.length == 1 && files[0] == "-")
@@ -502,10 +545,6 @@ File type options:
         {
             flags["--no-filename"] = new docopt.ArgValue(true);
         }
-        // else if (flags["--with-filename"].isFalse)
-        // {
-        //     flags["--no-filename"] = new docopt.ArgValue(false);
-        // }
     }
     catch(std.file.FileException e)
     {
@@ -560,7 +599,7 @@ File type options:
                 auto dirFiles = dirEntries(thisDir, spanMode, flags["--follow"].isTrue);
                 foreach(fileName; dirFiles)
                 {
-                    if (baseName(dirName(fileName)) in ignoreDirs)
+                    if (baseName(dirName(fileName.name)) in ignoreDirs)
                     {
                         continue;
                     }
@@ -607,6 +646,9 @@ File type options:
     auto matcher = regex(pattern, regexFlags);
     auto wmatcher = regex(std.utf.toUTF16(pattern), regexFlags);
 
+    auto first = true;
+    auto found = false;
+
     foreach(filename; fileList)
     {
         BufferedStream fstream;
@@ -628,14 +670,19 @@ File type options:
         switch(bom)
         {
             case BOM.UTF16LE, BOM.UTF16BE:
-                searchOneFileStream!wchar(inp, filename, wmatcher, flags, colorOpts,
-                                          before_context, after_context);
+                found |= searchOneFileStream!wchar(inp, filename, wmatcher, flags, colorOpts,
+                                                  before_context, after_context, found);
                 break;
             case BOM.UTF8:
             default:
-                searchOneFileStream!char(inp, filename, matcher, flags, colorOpts,
-                                         before_context, after_context);
+                found |= searchOneFileStream!char(inp, filename, matcher, flags, colorOpts,
+                                                 before_context, after_context, found);
                 break;
+        }
+
+        if (found)
+        {
+            first = false;
         }
 
         inp.close();
