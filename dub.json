@@ -1,10 +1,10 @@
 {
     "name": "sift",
     "description": "A 'grep' like tool, written in D.",
-    "copyright": "Copyright (C) 2014-2015, Bob Tolbert",
+    "copyright": "Copyright (C) 2014-2017, Bob Tolbert",
     "authors": ["Bob Tolbert"],
     "dependencies": {
-        "docopt": ">=0.6.1-b.4",
+        "docopt": ">=0.6.1-b.6",
         "colorize": ">=1.0.5"
     },
     "subPackages": [
