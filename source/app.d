@@ -1,6 +1,6 @@
 //  grep-like tool written in D.
 //
-//  Copyright (c) 2014, 2015 Bob Tolbert, bob@tolbert.org
+//  Copyright (c) 2014-2017 Bob Tolbert, bob@tolbert.org
 //  Licensed under terms of MIT license (see LICENSE-MIT)
 //
 //  https://github.com/rwtolbert/sift
@@ -13,16 +13,19 @@ import std.string;
 import std.algorithm;
 import std.regex;
 import std.utf;
-import std.stream;
-import std.cstream;
 import std.getopt;
 import std.container;
+
+import undead.stream;
+import undead.cstream;
 
 import docopt;
 import colorize;
 
 import utils;
 import colors;
+
+auto vers = "0.5.0";
 
 public bool extMatch(const DirEntry de, const int[string] exts)
 {
@@ -317,7 +320,7 @@ bool searchOneFileStream(T)(InputStream inp, const string filename,
 
 template DeclareType(string ftype, string inputs, string names)
 {
-    const char[] DeclareType = format("""
+    const char[] DeclareType = format("
     bool use_%s = false;
     bool no_%s = false;
     getopt(args,
@@ -339,7 +342,7 @@ template DeclareType(string ftype, string inputs, string names)
         }
     }
     typeOptions ~= \"    --[no-]%-12s  %s %s\n\";
-""", ftype, ftype, ftype, ftype, ftype, ftype, ftype, inputs, names, inputs, names, ftype, inputs, names, ftype, inputs, names);
+", ftype, ftype, ftype, ftype, ftype, ftype, ftype, inputs, names, inputs, names, ftype, inputs, names, ftype, inputs, names);
 }
 
 int main(string[] args)
@@ -347,7 +350,7 @@ int main(string[] args)
     auto usage = "
 Usage: sift [options] PATTERN [FILES ...]
        sift -f [options] [FILES ...]
-       sift --help
+       sift (-?|--help)
        sift --help-types
        sift --version
     ";
@@ -380,7 +383,7 @@ Output options:
     -s --silent                  Suppress failure on missing or unreadable file.
 
 Base options:
-    --help
+    -? --help                    Show this help.
     --help-types                 Show help on file type flags.
     --version                    Show version and exit.
 
@@ -493,6 +496,7 @@ File type options:
     mixin(DeclareType!("tcl", ".tcl .itcl .itk", ""));
     mixin(DeclareType!("tex", ".tex .cls .sty", ""));
     mixin(DeclareType!("textile", ".textile", ""));
+    mixin(DeclareType!("typescript", ".ts", ""));
     mixin(DeclareType!("vb", ".bas .cls .frm .ctl .vb .resx", ""));
     mixin(DeclareType!("verilog", ".v .vh .sv", ""));
     mixin(DeclareType!("vhdl", ".vhd .vhdl", ""));
@@ -500,7 +504,7 @@ File type options:
     mixin(DeclareType!("xml", ".xml .dtd .xsl .xslt .ent", ""));
     mixin(DeclareType!("yaml", ".yaml .yml", ""));
 
-    auto flags = docopt.docopt(docstring, args[1..$], true, "0.4.3");
+    auto flags = docopt.docopt(docstring, args[1..$], true, vers);
 
 //    dumpFlags(flags);
 
@@ -649,6 +653,8 @@ File type options:
     auto first = true;
     auto found = false;
 
+    auto curdir = getcwd() ~ dirSeparator;
+
     foreach(filename; fileList)
     {
         BufferedStream fstream;
@@ -657,13 +663,14 @@ File type options:
 
         if (filename == "-")
         {
-            inp = new EndianStream(std.cstream.din);
+            inp = new EndianStream(undead.cstream.din);
             bom = -1;
         }
         else
         {
             fstream = new BufferedFile(filename);
             inp = new EndianStream(fstream);
+            filename = filename.replace(curdir, "");
             bom = inp.readBOM();
         }
 

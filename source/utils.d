@@ -1,20 +1,29 @@
 //  grep-like tool written in D.
 //
-//  Copyright (c) 2014, 2015 Bob Tolbert, bob@tolbert.org
+//  Copyright (c) 2014-2017 Bob Tolbert, bob@tolbert.org
 //  Licensed under terms of MIT license (see LICENSE-MIT)
 //
 //  https://github.com/rwtolbert/sift
 //
 import std.stdio;
+import std.encoding;
 
 import docopt;
 
+version(Windows)
+{
+    extern(C) int isatty(int);
+}
 
 public bool isStdin()
 {
     version(Posix)
     {
         import core.sys.posix.unistd;
+        return (isatty(0) != 0);
+    }
+    version(Windows)
+    {
         return (isatty(0) != 0);
     }
 }
@@ -26,6 +35,10 @@ public bool isStdout()
         import core.sys.posix.unistd;
         return (isatty(1) != 0);
     }
+    version(Windows)
+    {
+        return (isatty(1) != 0);
+    }
 }
 
 public bool isStderr()
@@ -33,6 +46,10 @@ public bool isStderr()
     version(Posix)
     {
         import core.sys.posix.unistd;
+        return (isatty(2) != 0);
+    }
+    version(Windows)
+    {
         return (isatty(2) != 0);
     }
 }
