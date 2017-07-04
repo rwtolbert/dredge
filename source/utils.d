@@ -3,7 +3,7 @@
 //  Copyright (c) 2014-2017 Bob Tolbert, bob@tolbert.org
 //  Licensed under terms of MIT license (see LICENSE-MIT)
 //
-//  https://github.com/rwtolbert/sift
+//  https://github.com/rwtolbert/dredge
 //
 import std.stdio;
 import std.encoding;

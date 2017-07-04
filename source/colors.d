@@ -1,9 +1,9 @@
 //  grep-like tool written in D.
 //
-//  Copyright (c) 2014, 2015 Bob Tolbert, bob@tolbert.org
+//  Copyright (c) 2014, 2015, 2017 Bob Tolbert, bob@tolbert.org
 //  Licensed under terms of MIT license (see LICENSE-MIT)
 //
-//  https://github.com/rwtolbert/sift
+//  https://github.com/rwtolbert/dredge
 //
 import std.stdio;
 import std.algorithm;

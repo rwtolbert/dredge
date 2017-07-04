@@ -1,9 +1,9 @@
 {
-	"name": "sifttests",
+	"name": "dredgetests",
 	"description": "A 'grep' like tool, written in D.",
 	"copyright": "Copyright (C) 2014, Bob Tolbert",
 	"authors": ["Bob Tolbert"],
     "dependencies": {
-        "sift": {"version": "~master", "path": "../"}
+        "dg": {"version": "~master", "path": "../"}
     }
 }

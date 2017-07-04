@@ -3,7 +3,7 @@
 //  Copyright (c) 2014-2017 Bob Tolbert, bob@tolbert.org
 //  Licensed under terms of MIT license (see LICENSE-MIT)
 //
-//  https://github.com/rwtolbert/sift
+//  https://github.com/rwtolbert/dredge
 //
 
 import std.file;
@@ -25,7 +25,7 @@ import colorize;
 import utils;
 import colors;
 
-auto vers = "0.5.0";
+auto vers = "0.6.0";
 
 public bool extMatch(const DirEntry de, const int[string] exts)
 {
@@ -348,11 +348,11 @@ template DeclareType(string ftype, string inputs, string names)
 int main(string[] args)
 {
     auto usage = "
-Usage: sift [options] PATTERN [FILES ...]
-       sift -f [options] [FILES ...]
-       sift (-?|--help)
-       sift --help-types
-       sift --version
+Usage: dg [options] PATTERN [FILES ...]
+       dg -f [options] [FILES ...]
+       dg (-?|--help)
+       dg --help-types
+       dg --version
     ";
 
     auto doc = "
@@ -647,8 +647,19 @@ File type options:
     {
         pattern = format("\\b%s\\b", pattern);
     }
-    auto matcher = regex(pattern, regexFlags);
-    auto wmatcher = regex(std.utf.toUTF16(pattern), regexFlags);
+
+    Regex!char matcher;
+    Regex!wchar wmatcher;
+    try
+    {
+        matcher = regex(pattern, regexFlags);
+        wmatcher = regex(std.utf.toUTF16(pattern), regexFlags);
+    }
+    catch(RegexException)
+    {
+        writeln("Your pattern contains regex special characters. Escape or use '--literal'.");
+        return 1;
+    }
 
     auto first = true;
     auto found = false;

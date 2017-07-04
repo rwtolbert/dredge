@@ -1,4 +1,4 @@
-sift
+dg
 *.exe
 *.exe_cv
 *.pdb
@@ -7,3 +7,4 @@ dub.selections.json
 *.visualdproj
 *.sln
 *.suo
+__test__library__

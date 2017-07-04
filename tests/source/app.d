@@ -7,7 +7,7 @@ int main(string[] args)
     return 0;
 }
 
-string exe = "..\\sift.exe ";
+string exe = "..\\dg.exe ";
 string dataDir = "./data";
 
 struct TestCase
