@@ -378,8 +378,8 @@ Output options:
                                  matching lines.
     -C NUM --context NUM         Print NUM lines of output context.
     --no-color                   No color output
-    --filename-color COLOR       Color for filename output  [default: green]
-    --line-color COLOR           Color for line numbers     [default: cyan]
+    --filename-color COLOR       Color for filename output  [default: magenta]
+    --line-color COLOR           Color for line numbers     [default: green]
     --match-color COLOR          Color for match highlight  [default: red]
     -s --silent                  Suppress failure on missing or unreadable file.
 
