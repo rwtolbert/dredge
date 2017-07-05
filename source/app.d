@@ -15,7 +15,6 @@ import std.regex;
 import std.utf;
 import std.getopt;
 import std.container;
-import std.parallelism : taskPool;
 
 import undead.stream;
 import undead.cstream;
@@ -90,8 +89,8 @@ wchar[] getOneLine(T : wchar)(InputStream inp)
     return inp.readLineW();
 }
 
-void writeUnmatchedLine(T)(ulong lcount, T[] line, string filename,
-                           bool writeLineNo, const ColorOpts colorOpts)
+private void writeUnmatchedLine(T)(ulong lcount, T[] line, string filename,
+                                   bool writeLineNo, const ColorOpts colorOpts)
 {
     if (writeLineNo)
     {
@@ -667,7 +666,7 @@ File type options:
 
     auto curdir = getcwd() ~ dirSeparator;
 
-    foreach(filename; taskPool.parallel(fileList))
+    foreach(filename; fileList)
     {
         BufferedStream fstream;
         EndianStream inp;
