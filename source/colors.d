@@ -18,7 +18,7 @@ struct ColorOpts
     bool showColor;
     fg lineColor;
     fg fileColor;
-    bg matchColor;
+    fg matchColor;
 }
 
 string allowedColors = "    black, white, red, green, blue, cyan, yellow, magenta,
@@ -118,7 +118,7 @@ public ColorOpts getColors(docopt.ArgValue[string] flags)
     {
         colorExit(name);
     }
-    colorOpts.matchColor = bgCode(name);
+    colorOpts.matchColor = fgCode(name);
 
     return colorOpts;
 }

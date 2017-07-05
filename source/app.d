@@ -15,6 +15,7 @@ import std.regex;
 import std.utf;
 import std.getopt;
 import std.container;
+import std.parallelism : taskPool;
 
 import undead.stream;
 import undead.cstream;
@@ -120,7 +121,7 @@ void writeMatchedLine(T)(ulong lcount, T[] line, Regex!T matcher, string filenam
 {
     if (colorOpts.showColor)
     {
-        line = replaceAll(line, matcher, "$0".color(colorOpts.matchColor).color(fgCode("black")));
+        line = replaceAll(line, matcher, "$0".color(colorOpts.matchColor).color("mode_bold"));
     }
 
     if (writeLineNo)
@@ -379,7 +380,7 @@ Output options:
     --no-color                   No color output
     --filename-color COLOR       Color for filename output  [default: green]
     --line-color COLOR           Color for line numbers     [default: cyan]
-    --match-color COLOR          Color for match highlight  [default: yellow]
+    --match-color COLOR          Color for match highlight  [default: red]
     -s --silent                  Suppress failure on missing or unreadable file.
 
 Base options:
@@ -666,7 +667,7 @@ File type options:
 
     auto curdir = getcwd() ~ dirSeparator;
 
-    foreach(filename; fileList)
+    foreach(filename; taskPool.parallel(fileList))
     {
         BufferedStream fstream;
         EndianStream inp;
